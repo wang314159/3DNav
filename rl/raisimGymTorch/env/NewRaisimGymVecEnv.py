@@ -18,14 +18,19 @@ class RaisimGymVecEnv(gym.Env):
         self.normalize_ob = normalize_ob
         self.clip_obs = clip_obs
         self.wrapper = impl
+        self.num_agents=self.num_envs
         self.num_obs = self.wrapper.getObDim()
         self.num_acts = self.wrapper.getActionDim()
-        self.observation_space = spaces.Box(-1e6,1e6,[self.num_envs,self.num_obs],dtype=np.float32)
-        self.action_space = spaces.Box(-50,50,[self.num_envs,self.num_acts],dtype=np.float32)
-        # self.observation_space = spaces.Box(-1e6,1e6,[self.num_obs],dtype=np.float32)
-        # self.action_space = spaces.Box(-50,50,[self.num_acts],dtype=np.float32)
+        # self.observation_space = spaces.Box(-1e6,1e6,[self.num_envs,self.num_obs],dtype=np.float32)
+        # self.action_space = spaces.Box(-50,50,[self.num_envs,self.num_obs],dtype=np.float32)
+        self.observation_space = spaces.Box(-1e6,1e6,[self.num_obs],dtype=np.float32)
+        self.action_space = spaces.Box(-50,50,[self.num_acts],dtype=np.float32)
 
-        self._observations = np.ones([self.num_envs, self.num_obs], dtype=np.float32)
+        # self._observations = np.zeros([self.num_envs,self.num_obs], dtype=np.float32)
+        self._observations = np.zeros((1,self.num_obs), dtype=np.float32)
+        # print(self._observations.shape[0]," ",self._observations.shape[1])
+        
+
         # self.actions_high = np.multiply(np.ones([self.num_envs, self.num_acts], dtype=np.float32),50)
         # self.actions_low = np.multiply(np.ones([self.num_envs, self.num_acts], dtype=np.float32),-50)
         self.log_prob = np.zeros(self.num_envs, dtype=np.float32)
@@ -81,7 +86,7 @@ class RaisimGymVecEnv(gym.Env):
     def reset(self):
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
         self.wrapper.reset()
-        return self.observe()
+        return self.observe(True),{}
 
     def close(self):
         self.wrapper.close()
