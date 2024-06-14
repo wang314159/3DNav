@@ -12,8 +12,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Normal
-from torch.utils.tensorboard import SummaryWriter
+
 import wandb
+import math
+import time
 
 from ruamel.yaml import YAML, dump, RoundTripDumper
 from raisimGymTorch.env.NewRaisimGymVecEnv import RaisimGymVecEnv as VecEnv
@@ -83,6 +85,7 @@ np.random.seed(cfg['seed'])
 
 state_dim = env.num_obs#env.observation_space.shape[0]
 action_dim = env.num_acts#action_space.shape[0]
+print("dim_obs:",state_dim,"\tdim_act",action_dim)
 max_action = 50
 min_Val = torch.tensor(1e-7).float().to(device)
 
@@ -185,7 +188,6 @@ class SAC():
         self.replay_buffer = Replay_buffer(args.capacity)
         self.num_transition = 0 # pointer of replay buffer
         self.num_training = 0
-        self.writer = SummaryWriter('./exp-SAC_dual_Q_network')
 
         self.value_criterion = nn.MSELoss()
         self.Q1_criterion = nn.MSELoss()
@@ -197,7 +199,6 @@ class SAC():
         os.makedirs('./SAC_model/', exist_ok=True)
 
     def select_action(self, state):
-        # print(state)
         state = torch.FloatTensor(state).to(device)
         mu, log_sigma = self.policy_net(state)
         sigma = torch.exp(log_sigma)
@@ -244,11 +245,7 @@ class SAC():
 
             pi_loss = (log_prob - excepted_new_Q).mean() # according to original paper
 
-            wandb.log({"V_loss": V_loss, "Q1_loss": Q1_loss, "Q2_loss": Q2_loss, "pi_loss": pi_loss}, step=self.num_training)
-            self.writer.add_scalar('Loss/V_loss', V_loss, global_step=self.num_training)
-            self.writer.add_scalar('Loss/Q1_loss', Q1_loss, global_step=self.num_training)
-            self.writer.add_scalar('Loss/Q2_loss', Q2_loss, global_step=self.num_training)
-            self.writer.add_scalar('Loss/policy_loss', pi_loss, global_step=self.num_training)
+            wandb.log({"V_loss": V_loss, "Q1_loss": Q1_loss, "Q2_loss": Q2_loss, "pi_loss": pi_loss})
 
             # mini batch gradient descent
             self.value_optimizer.zero_grad()
@@ -299,38 +296,37 @@ class SAC():
 def main():
     agent = SAC()
     if args.load: agent.load()
+    n_steps = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
     wandb.init(project="3DNav",dir="./")
     print("====================================")
     print("Collection Experience...")
     print("====================================")
-
     ep_r = 0
     for i in range(args.iteration):
-        state = np.zeros((env.num_obs), dtype=np.float32) #env.reset()
-        # print(len(state[0]))
-        # print(len(state[1]))
-        for t in range(200):
-            # print(len(state))
+        state,_ = env.reset()
+        dones=0
+        for t in range(n_steps):
             action = agent.select_action(state)
             next_state, reward, done, info = env.step(np.float32(action))
+            # print(done)
             ep_r += reward
             if args.render and i >= args.render_interval : env.render()
             agent.replay_buffer.push(state, action, reward, next_state, done)
 
             state = next_state
-            if done:
-                if agent.replay_buffer.num_transition >= args.capacity:
-                    agent.update()
-                if i > 100:
-                    print("Ep_i \t{}, the ep_r is \t{}, the step is \t{}".format(i, ep_r, t))
+            if done.any():
+                dones+=1
+                
                 break
-        if i % args.log_interval == 0:
+        if agent.replay_buffer.num_transition >= 10000:
+            agent.update()
+        if i % args.log_interval == 0 and i>0:
             agent.save()
         wandb.log({"episode_reward": ep_r}, step=i)
-        agent.writer.add_scalar('ep_r', ep_r, global_step=i)
-        print("==============================================\n")
-        print("Episode: ", i,"|  Episode Reward: ", ep_r,"\n")
-        print("==============================================")
+        if i % 100==0:
+            print("==============================================\n")
+            print("Episode: ", i,"|  Episode Reward: ", ep_r,"\n")
+            print("==============================================")
         ep_r = 0
     wandb.finish()
 

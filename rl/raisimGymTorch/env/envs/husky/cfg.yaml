@@ -27,9 +27,9 @@ environment:
   num_envs: 1
   eval_every_n: 100
   num_threads: 50
-  simulation_dt: 0.0025
-  control_dt: 0.01
-  max_time: 4.0
+  simulation_dt: 0.01
+  control_dt: 0.05
+  max_time: 5.0
   action_std: 0.3
   reward:
     forwardVel:

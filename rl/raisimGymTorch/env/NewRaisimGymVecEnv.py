@@ -26,8 +26,8 @@ class RaisimGymVecEnv(gym.Env):
         # self.observation_space = spaces.Box(-1e6,1e6,[self.num_obs],dtype=np.float32)
         # self.action_space = spaces.Box(-50,50,[self.num_acts],dtype=np.float32)
 
-        self._observations = np.zeros((self.num_envs,self.num_obs), dtype=np.float32)
-        # self._observations = np.zeros((1,self.num_obs), dtype=np.float32)
+        self._observations = np.zeros([self.num_envs,self.num_obs], dtype=np.float32)
+        # self._observations = np.zeros((self.num_obs), dtype=np.float32)
         # print(self._observations.shape[0]," ",self._observations.shape[1])
         
 
@@ -78,6 +78,7 @@ class RaisimGymVecEnv(gym.Env):
 
     def observe(self, update_statistics=True):
         self.wrapper.observe(self._observations, update_statistics)
+        # print(self._observations.shape[0]," ",self._observations.shape[1])
         return self._observations
 
     def get_reward_info(self):
@@ -86,7 +87,8 @@ class RaisimGymVecEnv(gym.Env):
     def reset(self):
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
         self.wrapper.reset()
-        return self.observe(True),{}
+        # print(len(self._observations))
+        return self.observe(),{}
 
     def close(self):
         self.wrapper.close()
