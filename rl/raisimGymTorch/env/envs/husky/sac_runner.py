@@ -324,7 +324,7 @@ def main():
                 if i > 100:
                     print("Ep_i \t{}, the ep_r is \t{}, the step is \t{}".format(i, ep_r, t))
                 break
-        if i % args.log_interval == 0:
+        if i % args.log_interval == 0 and i>0:
             agent.save()
         wandb.log({"episode_reward": ep_r}, step=i)
         agent.writer.add_scalar('ep_r', ep_r, global_step=i)
