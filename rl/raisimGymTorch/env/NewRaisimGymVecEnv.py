@@ -21,13 +21,13 @@ class RaisimGymVecEnv(gym.Env):
         self.num_agents=self.num_envs
         self.num_obs = self.wrapper.getObDim()
         self.num_acts = self.wrapper.getActionDim()
-        # self.observation_space = spaces.Box(-1e6,1e6,[self.num_envs,self.num_obs],dtype=np.float32)
-        # self.action_space = spaces.Box(-50,50,[self.num_envs,self.num_obs],dtype=np.float32)
-        self.observation_space = spaces.Box(-1e6,1e6,[self.num_obs],dtype=np.float32)
-        self.action_space = spaces.Box(-50,50,[self.num_acts],dtype=np.float32)
+        self.observation_space = spaces.Box(-1e6,1e6,[self.num_envs,self.num_obs],dtype=np.float32)
+        self.action_space = spaces.Box(-50,50,[self.num_envs,self.num_obs],dtype=np.float32)
+        # self.observation_space = spaces.Box(-1e6,1e6,[self.num_obs],dtype=np.float32)
+        # self.action_space = spaces.Box(-50,50,[self.num_acts],dtype=np.float32)
 
-        # self._observations = np.zeros([self.num_envs,self.num_obs], dtype=np.float32)
-        self._observations = np.zeros((1,self.num_obs), dtype=np.float32)
+        self._observations = np.zeros((self.num_envs,self.num_obs), dtype=np.float32)
+        # self._observations = np.zeros((1,self.num_obs), dtype=np.float32)
         # print(self._observations.shape[0]," ",self._observations.shape[1])
         
 
