@@ -42,7 +42,7 @@ class RewardAnalyzer:
             self.writer.add_scalar(self.data_tags[data_id]+'/std', data_std[data_id], global_step=step)
             self.writer.add_scalar(self.data_tags[data_id]+'/min', self.data_min[data_id], global_step=step)
             self.writer.add_scalar(self.data_tags[data_id]+'/max', self.data_max[data_id], global_step=step)
-        print(self.reward_dict)
+        # print(self.reward_dict)
         self.data_size = 0
         self.data_mean = np.zeros(shape=(len(self.data_tags), 1), dtype=np.double)
         self.data_square_sum = np.zeros(shape=(len(self.data_tags), 1), dtype=np.double)

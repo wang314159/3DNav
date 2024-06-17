@@ -38,6 +38,7 @@ if __name__ == '__main__':
     cfg = YAML().load(open(task_path + "/cfg.yaml", 'r'))
     max_step = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
     env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
+    print("env created")
     # env.turn_off_visualization()
     eval_interval = 10
     epoches = 100000
