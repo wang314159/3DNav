@@ -39,7 +39,8 @@ int main(int argc, char* argv[]) {
   damping.setConstant(0);
   damping.tail(4).setConstant(1.);
   robot->setJointDamping(damping);
-
+  world.setGravity({0, 0, -9.81});
+  robot->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
   /// launch raisim server
   raisim::RaisimServer server(&world);
 
@@ -102,7 +103,8 @@ int main(int argc, char* argv[]) {
     // if(time==100){
     //   pcl::io::savePLYFile("map.ply", *cloud);
     // }
-    robot->setGeneralizedForce({0, 0, 0, 0, 0, 0, -20, -20, -20, -20});
+    // robot->setGeneralizedVelocity({0, 0, 0, 0, 0, 0, 20, 20, -20, -20});
+    robot->setGeneralizedForce({0, 0, 0, 0, 0, 0, 50, 50, 50, 50});
     gc = robot->getGeneralizedCoordinate().e();
 
     if(fabs(gc[0])>35. || fabs(gc[1])>35.) {

@@ -38,11 +38,12 @@ if __name__ == '__main__':
     cfg = YAML().load(open(task_path + "/cfg.yaml", 'r'))
     max_step = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
     env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
-    eval_interval = 500
+    # env.turn_off_visualization()
+    eval_interval = 10
     epoches = 100000
     env.seed(cfg['seed'])
     env_args = {
-        'env_name': 'Husky',  # Apply torque on the free end to swing a pendulum into an upright position
+        'env_name': 'Husky',  # the environment name
         'max_step': max_step,  # the max step number of an episode.
         'state_dim': env.state_dim,  # the x-y coordinates of the pendulum's free end and its angular velocity.
         'action_dim': env.action_dim,  # the torque applied to free end of the pendulum
@@ -103,8 +104,8 @@ if __name__ == '__main__':
     '''init evaluator'''
     eval_env_class = args.eval_env_class if args.eval_env_class else args.env_class
     eval_env_args = args.eval_env_args if args.eval_env_args else args.env_args
-    eval_env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
-    evaluator = Evaluator(cwd=args.cwd, env=eval_env, args=args, if_wandb=use_wandb)
+    # eval_env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
+    evaluator = Evaluator(cwd=args.cwd, env=env, args=args, if_wandb=use_wandb)
 
     '''train loop'''
     cwd = args.cwd
@@ -124,10 +125,12 @@ if __name__ == '__main__':
         torch.set_grad_enabled(True)
         logging_tuple = agent.update_net(buffer)
         torch.set_grad_enabled(False)
-        # if(i%eval_interval==0):
+        if(i%eval_interval==0):
         #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
         # eval_env.turn_on_visualization()
-        evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
+            env.turn_on_visualization()
+            evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
+            env.turn_off_visualization()
         # if_train = (evaluator.total_step <= break_step) and (not os.path.exists(f"{cwd}/stop"))
 
     print(f'| UsedTime: {time.time() - evaluator.start_time:>7.0f} | SavedDir: {cwd}')

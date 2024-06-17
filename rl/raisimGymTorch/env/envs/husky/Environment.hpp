@@ -37,7 +37,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     husky_ = world_->addArticulatedSystem(resourceDir_+ params_.robot_urdf);
     husky_->setName("husky");
     husky_->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
-    world_->addGround();
+    // world_->addGround();
     lidar_.init(params_.scanSize[0], params_.scanSize[1], visualizable_);
     /// get robot data
     gcDim_ = husky_->getGeneralizedCoordinateDim();
@@ -106,12 +106,13 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   float step(const Eigen::Ref<EigenVec>& action) final {
     /// action scaling
-    pTarget12_ = action.cast<double>();
-    pTarget12_ = pTarget12_.cwiseProduct(actionStd_);
-    pTarget12_ += actionMean_;
-    pTarget_.tail(nJoints_) = pTarget12_;
+    // pTarget12_ = action.cast<double>();
+    // pTarget12_ = pTarget12_.cwiseProduct(actionStd_);
+    // pTarget12_ += actionMean_;
+    // pTarget_.tail(nJoints_) = pTarget12_;
 
-    husky_->setPdTarget(pTarget_, vTarget_);
+    // husky_->setPdTarget(pTarget_, vTarget_);
+    husky_->setGeneralizedForce({0, 0, 0, 0, 0, 0, action[0], action[1], action[2], action[3]});
 
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
       if(server_) server_->lockVisualizationServerMutex();
