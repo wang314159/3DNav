@@ -218,7 +218,7 @@ class SAC():
         log_prob = dist.log_prob(batch_mu + batch_sigma * z.to(device)) - torch.log(1 - action.pow(2) + min_Val)
         return action, log_prob, z, batch_mu, batch_log_sigma
 
-    def update(self):
+    def update(self,times=0,log=False):
         if self.num_training % 500 == 0:
             print("Training ... \t{} times ".format(self.num_training))
 
@@ -232,6 +232,7 @@ class SAC():
             excepted_Q1 = self.Q_net1(bn_s, bn_a)
             excepted_Q2 = self.Q_net2(bn_s, bn_a)
             sample_action, log_prob, z, batch_mu, batch_log_sigma = self.evaluate(bn_s)
+            log_prob = log_prob.mean(1).reshape(-1, 1)
             excepted_new_Q = torch.min(self.Q_net1(bn_s, sample_action), self.Q_net2(bn_s, sample_action))
             next_value = excepted_new_Q - log_prob
 
@@ -244,8 +245,8 @@ class SAC():
             Q2_loss = self.Q2_criterion(excepted_Q2, next_q_value.detach()).mean()
 
             pi_loss = (log_prob - excepted_new_Q).mean() # according to original paper
-
-            wandb.log({"V_loss": V_loss, "Q1_loss": Q1_loss, "Q2_loss": Q2_loss, "pi_loss": pi_loss})
+            if(log):
+                wandb.log({"V_loss": V_loss, "Q1_loss": Q1_loss, "Q2_loss": Q2_loss, "pi_loss": pi_loss},times)
 
             # mini batch gradient descent
             self.value_optimizer.zero_grad()
@@ -297,6 +298,7 @@ def main():
     agent = SAC()
     if args.load: agent.load()
     n_steps = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
+    update_interval=20
     wandb.init(project="3DNav",dir="./")
     print("====================================")
     print("Collection Experience...")
@@ -319,10 +321,14 @@ def main():
                 
                 break
         if agent.replay_buffer.num_transition >= 10000:
-            agent.update()
+            if i%update_interval==0:
+                for j in range (update_interval-1):
+                    agent.update()
+                
+                agent.update(i,True)
         if i % args.log_interval == 0 and i>0:
             agent.save()
-        wandb.log({"episode_reward": ep_r}, step=i)
+        wandb.log({"episode_reward": ep_r},i)
         if i % 100==0:
             print("==============================================\n")
             print("Episode: ", i,"|  Episode Reward: ", ep_r,"\n")
