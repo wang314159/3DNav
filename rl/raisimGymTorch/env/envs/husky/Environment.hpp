@@ -127,7 +127,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     double dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
     // rewards_.record("torque", husky_->getGeneralizedForce().squaredNorm());
-    //rewards_.record("forwardVel", std::min(4.0, bodyLinearVel_[0]));
+    rewards_.record("forwardVel", std::min(4.0, gv_[0]));
     rewards_.record("distance", 1-dist/50.0);
     rewards_.record("roll", -abs(obDouble_[1]));
     rewards_.record("pitch", -abs(obDouble_[2]));

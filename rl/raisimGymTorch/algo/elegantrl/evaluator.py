@@ -15,7 +15,9 @@ class Evaluator:
         self.env = env  # the env for Evaluator, `eval_env = env` in default
         self.agent_id = args.gpu_id
         self.total_step = 0  # the total training step
+        
         self.start_time = time.time()  # `used_time = time.time() - self.start_time`
+        self.last_time = self.start_time
         self.eval_times = args.eval_times  # number of times that get episodic cumulative return
         self.eval_per_step = args.eval_per_step  # evaluate the agent per training steps
         self.eval_step_counter = -self.eval_per_step  # `self.total_step > self.eval_step_counter + self.eval_per_step`
@@ -65,7 +67,7 @@ class Evaluator:
         avg_s = steps.mean().item()
         std_s = steps.std().item()
 
-        train_time = int(time.time() - self.start_time)
+        train_time = int(time.time() - self.last_time)
         # self.start_time = train_time
         '''record the training information'''
         self.recorder.append((self.total_step, avg_r, std_r, exp_r, *logging_tuple))  # update recorder
@@ -98,7 +100,9 @@ class Evaluator:
         print(f"{self.agent_id:<3}{epoch:8.0f}{train_time:8.0f} |"
               f"{avg_r:8.2f}{std_r:7.1f}{avg_s:7.0f}{std_s:6.0f} |"
               f"{exp_r:8.2f}{''.join(f'{n:7.2f}' for n in logging_tuple)}")
-
+        
+        self.last_time = time.time()
+        
         if_save = avg_r > prev_max_r
         if if_save:
             self.save_training_curve_jpg()
@@ -147,11 +151,10 @@ class Evaluator:
     def save_training_curve_jpg(self):
         recorder = np.array(self.recorder)
 
-        train_time = int(time.time() - self.start_time)
-        self.start_time = train_time
+        train_time = int(time.time() - self.last_time)
         total_step = int(self.recorder[-1][0])
         fig_title = f"step_time_maxR_{int(total_step)}_{int(train_time)}_{self.max_r:.3f}"
-
+        self.last_time = time.time()
         draw_learning_curve(recorder=recorder, fig_title=fig_title, save_path=f"{self.cwd}/LearningCurve.jpg")
         np.save(self.recorder_path, recorder)  # save self.recorder for `draw_learning_curve()`
 
