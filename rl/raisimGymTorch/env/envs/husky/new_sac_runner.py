@@ -2,143 +2,138 @@ import torch
 import torch.nn as nn
 import os
 # import the skrl components to build the RL system
-from skrl.agents.torch.sac import SAC, SAC_DEFAULT_CONFIG
-from skrl.envs.loaders.torch import load_isaac_orbit_env
-from skrl.envs.wrappers.torch import wrap_env
-from skrl.memories.torch import RandomMemory
-from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
-from skrl.resources.preprocessors.torch import RunningStandardScaler
-from skrl.trainers.torch import SequentialTrainer
-from skrl.utils import set_seed
 from ruamel.yaml import YAML, dump, RoundTripDumper
-from raisimGymTorch.env.NewRaisimGymVecEnv import RaisimGymVecEnv as VecEnv
+from raisimGymTorch.env.EleRLRaisimGymVecEnv import RaisimGymVecEnv as VecEnv
 from raisimGymTorch.helper.raisim_gym_helper import ConfigurationSaver, load_param, tensorboard_launcher
 from raisimGymTorch.env.bin.husky import NormalSampler
 from raisimGymTorch.env.bin.husky import RaisimGymEnv
 
-# from raisimGymTorch.algo.sac.lstm import Actor,Critic
-from raisimGymTorch.algo.sac.mlp import Actor,Critic
-# from raisimGymTorch.algo.sac.rnn import Actor,Critic
-# from raisimGymTorch.algo.sac.cnn import Actor,Critic
 import copy
 import tqdm
 import sys
 import time
-# seed for reproducibility
-set_seed()  # e.g. `set_seed(42)` for fixed seed
+
+import math
+
+import sys
+from argparse import ArgumentParser
+from raisimGymTorch.algo.elegantrl import Config
+from raisimGymTorch.algo.elegantrl import AgentSAC, AgentModSAC
+from raisimGymTorch.algo.elegantrl import Config
+from raisimGymTorch.algo.elegantrl import ReplayBuffer
+from raisimGymTorch.algo.elegantrl import Evaluator
+import wandb
 
 
 
+if __name__ == '__main__':
+    agent_class = AgentSAC# DRL algorithm name
+    env_class = VecEnv  # run a custom env: PendulumEnv, which based on OpenAI pendulum
+    use_wandb = True
+    if use_wandb:
+        wandb.init(project="husky_navigation")
+    # get_gym_env_args(env=PendulumEnv(), if_print=True)  # return env_args
+    task_path = os.path.dirname(os.path.realpath(__file__))
+    home_path = task_path + "/../../../../.."
+    cfg = YAML().load(open(task_path + "/cfg.yaml", 'r'))
+    max_step = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
+    env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
+    eval_interval = 500
+    epoches = 100000
+    env.seed(cfg['seed'])
+    env_args = {
+        'env_name': 'Husky',  # Apply torque on the free end to swing a pendulum into an upright position
+        'max_step': max_step,  # the max step number of an episode.
+        'state_dim': env.state_dim,  # the x-y coordinates of the pendulum's free end and its angular velocity.
+        'action_dim': env.action_dim,  # the torque applied to free end of the pendulum
+        'if_discrete': False,  # continuous action space, symbols → direction, value → force
 
+        'num_envs': env.num_envs,  # the number of sub envs in vectorized env
+        'if_build_vec_env': True,
+    }
+    print(env_args)
+    args = Config(agent_class, env_class, env_args)  # see `config.py Arguments()` for hyperparameter explanation
+    args.net_dims = (128, 64)  # the middle layer dimension of MultiLayer Perceptron
+    args.batch_size = 512  # vectorized env need a larger batch_size
+    args.gamma = 0.97  # discount factor of future rewards
+    args.horizon_len = args.max_step
 
-# create environment from the configuration file
-task_path = os.path.dirname(os.path.realpath(__file__))
-home_path = task_path + "/../../../../.."
-cfg = YAML().load(open(task_path + "/cfg.yaml", 'r'))
-env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)))
-env.seed(cfg['seed'])
-print("obs",env.num_obs)
-print("act",env.num_acts)
-env = wrap_env(env)
+    args.repeat_times = 1.0  # repeatedly update network using ReplayBuffer to keep critic's loss small
+    args.learning_rate = 2e-4
+    args.state_value_tau = 0.2  # the tau of normalize for value and state `std = (1-std)*std + tau*std`
 
-device = env.device
+    args.eval_per_step = int(4e3)
+    args.break_step = int(1e5*args.max_step)  # break training if 'total_step > break_step'
 
+    args.gpu_id = 0
+    args.num_workers = 1
+    if_single_process = True
+    args.init_before_training()
+    torch.set_grad_enabled(False)
 
-# instantiate a memory as rollout buffer (any memory can be used for this)
-memory = RandomMemory(memory_size=15625, num_envs=env.num_envs, device=device)
+    '''init environment'''
+    # env = build_env(args.env_class, args.env_args, args.gpu_id)
 
+    '''init agent'''
+    agent = AgentSAC(args.net_dims, args.state_dim, args.action_dim, gpu_id=args.gpu_id, args=args)
+    agent.save_or_load_agent(args.cwd, if_save=False)
 
-# instantiate the agent's models (function approximators).
-# SAC requires 5 models, visit its documentation for more details
-# https://skrl.readthedocs.io/en/latest/api/agents/sac.html#models
-models = {}
-models["policy"] = Actor(env.observation_space, env.action_space, device, clip_actions=True, num_envs=env.num_envs)
-models["critic_1"] = Critic(env.observation_space, env.action_space, device, num_envs=env.num_envs)
-models["critic_2"] = Critic(env.observation_space, env.action_space, device, num_envs=env.num_envs)
-models["target_critic_1"] = Critic(env.observation_space, env.action_space, device, num_envs=env.num_envs)
-models["target_critic_2"] = Critic(env.observation_space, env.action_space, device, num_envs=env.num_envs)
+    '''init agent.last_state'''
+    state = env.reset()
 
-print("model created")
-# configure and instantiate the agent (visit its documentation to see all the options)
-# https://skrl.readthedocs.io/en/latest/api/agents/sac.html#configuration-and-hyperparameters
-cfg = SAC_DEFAULT_CONFIG.copy()
-cfg["gradient_steps"] = 1
-cfg["batch_size"] = 4096
-cfg["discount_factor"] = 0.99
-cfg["polyak"] = 0.005
-cfg["actor_learning_rate"] = 5e-4
-cfg["critic_learning_rate"] = 5e-4
-cfg["random_timesteps"] = 80
-cfg["learning_starts"] = 80
-cfg["grad_norm_clip"] = 0
-cfg["learn_entropy"] = True
-cfg["entropy_learning_rate"] = 5e-3
-cfg["initial_entropy_value"] = 1.0
-cfg["state_preprocessor"] = RunningStandardScaler
-cfg["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device}
-# logging to TensorBoard and write checkpoints (in timesteps)
-cfg["experiment"]["write_interval"] = 800
-cfg["experiment"]["checkpoint_interval"] = 8000
-cfg["experiment"]["directory"] = "runs/torch/husky"
-cfg["experiment"]["wandb"] = False
+    assert state.shape == (args.num_envs, args.state_dim)
+    assert isinstance(state, torch.Tensor)
+    state = state.to(agent.device)
+    agent.last_state = state.detach()
 
-agent = SAC(models=models,
-            memory=memory,
-            cfg=cfg,
-            observation_space=env.observation_space,
-            action_space=env.action_space,
-            device=device)
+    '''init buffer'''
 
-print(env.num_agents)
-time.sleep(2)
-# configure and instantiate the RL trainer
-cfg_trainer = {"timesteps": 160000, "headless": True}
-trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
+    buffer = ReplayBuffer(
+        gpu_id=args.gpu_id,
+        num_seqs=args.num_envs,
+        max_size=args.buffer_size,
+        state_dim=args.state_dim,
+        action_dim=args.action_dim,
+        if_use_per=args.if_use_per,
+        args=args,
+    )
+    buffer_items = agent.explore_env(env, args.horizon_len * args.eval_times, if_random=True)
+    buffer.update(buffer_items)  # warm up for ReplayBuffer
 
-# start training
-trainer.train()
+    '''init evaluator'''
+    eval_env_class = args.eval_env_class if args.eval_env_class else args.env_class
+    eval_env_args = args.eval_env_args if args.eval_env_args else args.env_args
+    eval_env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
+    evaluator = Evaluator(cwd=args.cwd, env=eval_env, args=args, if_wandb=use_wandb)
 
-# initial_timestep=0
-# timesteps=160000
+    '''train loop'''
+    cwd = args.cwd
+    break_step = args.break_step
+    horizon_len = args.horizon_len
+    if_off_policy = args.if_off_policy
+    if_save_buffer = args.if_save_buffer
+    del args
 
-# states, infos = env.reset()
+    if_train = True
+    for i in range(epoches):
+        buffer_items = agent.explore_env(env, horizon_len)
 
-# for timestep in tqdm.tqdm(range(initial_timestep, timesteps), disable=False, file=sys.stdout):
+        exp_r = buffer_items[2].mean().item()
+        buffer.update(buffer_items)
 
-#             # pre-interaction
-#             agent.pre_interaction(timestep=timestep, timesteps=timesteps)
+        torch.set_grad_enabled(True)
+        logging_tuple = agent.update_net(buffer)
+        torch.set_grad_enabled(False)
+        # if(i%eval_interval==0):
+        #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
+        # eval_env.turn_on_visualization()
+        evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
+        # if_train = (evaluator.total_step <= break_step) and (not os.path.exists(f"{cwd}/stop"))
 
-#             # compute actions
-#             with torch.no_grad():
-#                 actions = agent.act(states, timestep=timestep, timesteps=timesteps)[0]
+    print(f'| UsedTime: {time.time() - evaluator.start_time:>7.0f} | SavedDir: {cwd}')
 
-#                 # step the environments
-#                 next_states, rewards, terminated, truncated, infos = env.step(actions)
-
-#                 # render scene
-#                 # if not headless:
-#                 #     env.render()
-
-#                 # record the environments' transitions
-#                 agent.record_transition(states=states,
-#                                               actions=actions,
-#                                               rewards=rewards,
-#                                               next_states=next_states,
-#                                               terminated=terminated,
-#                                               truncated=truncated,
-#                                               infos=infos,
-#                                               timestep=timestep,
-#                                               timesteps=timesteps)
-
-#             # post-interaction
-#             agent.post_interaction(timestep=timestep, timesteps=timesteps)
-
-#             # reset environments
-#             if env.num_envs > 1:
-#                 states = next_states
-#             else:
-#                 if terminated.any() or truncated.any():
-#                     with torch.no_grad():
-#                         states, infos = env.reset()
-#                 else:
-#                     states = next_states
+    env.close()
+    evaluator.save_training_curve_jpg()
+    agent.save_or_load_agent(cwd, if_save=True)
+    if if_save_buffer and hasattr(buffer, 'save_or_load_history'):
+        buffer.save_or_load_history(cwd, if_save=True)

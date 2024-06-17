@@ -147,9 +147,11 @@ class Critic(nn.Module):
         self.fc3 = nn.Linear(256, 1)
 
     def forward(self, x):
+        print("Critic: x1: ",x.size())
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+        print("Critic: x2: ",x.size())
         return x
 
 
@@ -161,12 +163,14 @@ class Q(nn.Module):
         self.fc3 = nn.Linear(256, 1)
 
     def forward(self, s, a):
+        print("Q: s: ",s.size()," a: ",a.size())
         s = s.reshape(-1, state_dim)
         a = a.reshape(-1, action_dim)
         x = torch.cat((s, a), -1) # combination s and a
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+        print("Q: x: ",x.size())
         return x
 
 
@@ -215,6 +219,8 @@ class SAC():
 
         z = noise.sample()
         action = torch.tanh(batch_mu + batch_sigma*z.to(device))
+        # action = action.mean(0).t()
+        # print(action.size())
         log_prob = dist.log_prob(batch_mu + batch_sigma * z.to(device)) - torch.log(1 - action.pow(2) + min_Val)
         return action, log_prob, z, batch_mu, batch_log_sigma
 
@@ -233,8 +239,18 @@ class SAC():
             excepted_Q2 = self.Q_net2(bn_s, bn_a)
             sample_action, log_prob, z, batch_mu, batch_log_sigma = self.evaluate(bn_s)
             log_prob = log_prob.mean(1).reshape(-1, 1)
+
+
+
+
             excepted_new_Q = torch.min(self.Q_net1(bn_s, sample_action), self.Q_net2(bn_s, sample_action))
             next_value = excepted_new_Q - log_prob
+            print("log_prob: ",log_prob.size())
+            print("next_value: ",next_value.size())
+            print("excepted_value: ",excepted_value.size())
+            print("next_q_value: ",next_q_value.size())
+            print("excepted_Q1: ",excepted_Q1.size())
+            print("excepted_Q2: ",excepted_Q2.size())
 
             # !!!Note that the actions are sampled according to the current policy,
             # instead of replay buffer. (From original paper)
@@ -320,12 +336,14 @@ def main():
                 dones+=1
                 
                 break
+
         if agent.replay_buffer.num_transition >= 10000:
             if i%update_interval==0:
                 for j in range (update_interval-1):
                     agent.update()
                 
                 agent.update(i,True)
+
         if i % args.log_interval == 0 and i>0:
             agent.save()
         wandb.log({"episode_reward": ep_r},i)

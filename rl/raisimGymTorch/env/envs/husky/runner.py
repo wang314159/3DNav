@@ -113,7 +113,6 @@ for update in range(1000000):
                 # print(len(obs[0]))
                 action = loaded_graph.architecture(torch.from_numpy(obs).cpu())
                 reward, dones = env.step(action.cpu().detach().numpy())
-                
                 reward_analyzer.add_reward_info(env.get_reward_info())
                 frame_end = time.time()
                 wait_time = cfg['environment']['control_dt'] - (frame_end-frame_start)
