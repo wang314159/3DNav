@@ -32,10 +32,10 @@ class EleRLRewardAnalyzer:
         data_std = np.sqrt((self.data_square_sum - self.data_size * self.data_mean * self.data_mean) / (self.data_size - 1 + 1e-16))
 
         for data_id in range(len(self.data_tags)):
-            self.reward_dict["reward/"+self.data_tags[data_id]+'/mean'] = self.data_mean[data_id][0]
-            self.reward_dict["reward/"+self.data_tags[data_id]+'/std'] = data_std[data_id][0]
-            self.reward_dict["reward/"+self.data_tags[data_id]+'/min'] = self.data_min[data_id][0]
-            self.reward_dict["reward/"+self.data_tags[data_id]+'/max'] = self.data_max[data_id][0]
+            self.reward_dict["reward/"+self.data_tags[data_id]+'_mean'] = self.data_mean[data_id][0]
+            self.reward_dict["reward/"+self.data_tags[data_id]+'_std'] = data_std[data_id][0]
+            self.reward_dict["reward/"+self.data_tags[data_id]+'_min'] = self.data_min[data_id][0]
+            self.reward_dict["reward/"+self.data_tags[data_id]+'_max'] = self.data_max[data_id][0]
 
         self.data_size = 0
         self.data_mean = np.zeros(shape=(len(self.data_tags), 1), dtype=np.double)

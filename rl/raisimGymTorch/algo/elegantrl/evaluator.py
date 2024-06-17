@@ -31,7 +31,7 @@ class Evaluator:
         self.analyzer = EleRLRewardAnalyzer(env)
         self.info_dict = {}
         print("| Evaluator:"
-              "\n| `step`: Number of samples, or total training steps, or running times of `env.step()`."
+              "\n| `epoch`: Number of epoches"
               "\n| `time`: Time spent from the start of training to this moment."
               "\n| `avgR`: Average value of cumulative rewards, which is the sum of rewards in an episode."
               "\n| `stdR`: Standard dev of cumulative rewards, which is the sum of rewards in an episode."
@@ -39,7 +39,7 @@ class Evaluator:
               "\n| `objC`: Objective of Critic network. Or call it loss function of critic network."
               "\n| `objA`: Objective of Actor network. It is the average Q value of the critic network."
               f"\n{'#' * 80}\n"
-              f"{'ID':<3}{'Step':>8}{'Time':>8} |"
+              f"{'ID':<3}{'Epoches':>8}{'Time':>8} |"
               f"{'avgR':>8}{'stdR':>7}{'avgS':>7}{'stdS':>6} |"
               f"{'expR':>8}{'objC':>7}{'objA':>7}{'etc.':>7}")
         if getattr(env, 'num_envs', 1) == 1:  # get attribute
@@ -73,9 +73,9 @@ class Evaluator:
         # print(reward_dict)
         self.info_dict["info/critic_loss"]=logging_tuple[0]
         self.info_dict["info/actor_obj"]=-1 * logging_tuple[1]
-        self.info_dict["reward/sum/avg_reward"]=avg_r
-        self.info_dict["reward/sum/std_reward"]=std_r
-        self.info_dict["reward/sum/exp_reward"]=exp_r
+        self.info_dict["reward/sum_avg"]=avg_r
+        self.info_dict["reward/sum_std"]=std_r
+        self.info_dict["reward/sum_exp"]=exp_r
         # print(self.info_dict)
         if self.wandb_log:
             wandb.log(reward_dict | self.info_dict, epoch)
@@ -95,7 +95,7 @@ class Evaluator:
         '''print some information to Terminal'''
         prev_max_r = self.max_r
         self.max_r = max(self.max_r, avg_r)  # update max average cumulative rewards
-        print(f"{self.agent_id:<3}{self.total_step:8.2e}{train_time:8.0f} |"
+        print(f"{self.agent_id:<3}{epoch:8.0f}{train_time:8.0f} |"
               f"{avg_r:8.2f}{std_r:7.1f}{avg_s:7.0f}{std_s:6.0f} |"
               f"{exp_r:8.2f}{''.join(f'{n:7.2f}' for n in logging_tuple)}")
 
