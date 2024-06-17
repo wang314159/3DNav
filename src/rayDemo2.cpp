@@ -26,20 +26,20 @@ int main(int argc, char* argv[]) {
   terrainProperties.fractalLacunarity = 2.0;
   terrainProperties.fractalGain = 0.25;
 
-  auto hm = world.addHeightMap("../data/height3.png", 0, 0, 20, 20, 0.00002, 0);
+  auto hm = world.addHeightMap("../data/height3.png", 0, 0, 10, 10, 0.00001, 0);
   // auto hm = world.addHeightMap("height2.png", 0, 0, 50, 50, 0.00005, 1.5);
   auto robot = world.addArticulatedSystem(binaryPath.getDirectory() + "../data/husky/husky.urdf");
   robot->setName("husky");
   hm->setAppearance("soil2");
   Eigen::VectorXd gc(robot->getGeneralizedCoordinateDim()), gv(robot->getDOF()), damping(robot->getDOF());
   gc.setZero(); gv.setZero();
-  gc.segment<7>(0) << 5, 7, 0.2, 1, 0, 0, 0;
+  gc.segment<7>(0) << -4, -4, 0, 1, 0, 0, 0;
   robot->setGeneralizedCoordinate(gc);
   robot->setGeneralizedVelocity(gv);
   damping.setConstant(0);
   damping.tail(4).setConstant(1.);
   robot->setJointDamping(damping);
-  world.setGravity({0, 0, -9.81});
+  // world.setGravity({0, 0, -9.81});
   robot->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
   /// launch raisim server
   raisim::RaisimServer server(&world);
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
     //   pcl::io::savePLYFile("map.ply", *cloud);
     // }
     // robot->setGeneralizedVelocity({0, 0, 0, 0, 0, 0, 20, 20, -20, -20});
-    robot->setGeneralizedForce({0, 0, 0, 0, 0, 0, 50, 50, 50, 50});
+    robot->setGeneralizedForce({0, 0, 0, 0, 0, 0, 20, 20, 20, 20});
     gc = robot->getGeneralizedCoordinate().e();
 
     if(fabs(gc[0])>35. || fabs(gc[1])>35.) {
