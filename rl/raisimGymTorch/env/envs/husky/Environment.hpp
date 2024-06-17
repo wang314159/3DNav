@@ -64,7 +64,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     husky_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
     /// MUST BE DONE FOR ALL ENVIRONMENTS
-    obDim_ = 5 + lidar_.e_.GetHeightVec().size();
+    obDim_ = 5 ;//+ lidar_.e_.GetHeightVec().size();
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     obDouble_.setZero(obDim_);
 
@@ -143,8 +143,8 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     obDouble_ << gc_[2] - gc_init_[2], /// body height (relative to init position)
         Euler[0], Euler[1], /// body orientation
-        gc_[0] - goalpos[0],gc_[1] - goalpos[1],//relative position to goal
-        lidar_.e_.GetHeightVec(); 
+        gc_[0] - goalpos[0],gc_[1] - goalpos[1];//,//relative position to goal
+        //lidar_.e_.GetHeightVec(); 
   }
 
   void observe(Eigen::Ref<EigenVec> ob) final {
