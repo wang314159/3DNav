@@ -32,7 +32,7 @@ class Evaluator:
         self.info_dict = {}
         print("| Evaluator:"
               "\n| `epoch`: Number of epoches"
-              "\n| `time`: Time spent from the start of training to this moment."
+              "\n| `time`: Time spent from last evaluation."
               "\n| `avgR`: Average value of cumulative rewards, which is the sum of rewards in an episode."
               "\n| `stdR`: Standard dev of cumulative rewards, which is the sum of rewards in an episode."
               "\n| `avgS`: Average of steps in an episode."
@@ -51,10 +51,10 @@ class Evaluator:
 
     def evaluate_and_save(self, actor: torch.nn, steps: int,epoch: int, exp_r: float, logging_tuple: tuple):
         self.total_step += steps  # update total training steps
-        if self.total_step < self.eval_step_counter + self.eval_per_step:
-            return
+        # if self.total_step < self.eval_step_counter + self.eval_per_step:
+        #     return
 
-        self.eval_step_counter = self.total_step
+        # self.eval_step_counter = self.total_step
 
         rewards_step_ten = self.get_cumulative_rewards_and_step(actor)
         # print(rewards_step_ten.cpu().numpy())
@@ -66,7 +66,7 @@ class Evaluator:
         std_s = steps.std().item()
 
         train_time = int(time.time() - self.start_time)
-
+        # self.start_time = train_time
         '''record the training information'''
         self.recorder.append((self.total_step, avg_r, std_r, exp_r, *logging_tuple))  # update recorder
         reward_dict = self.analyzer.analyze()
@@ -148,6 +148,7 @@ class Evaluator:
         recorder = np.array(self.recorder)
 
         train_time = int(time.time() - self.start_time)
+        self.start_time = train_time
         total_step = int(self.recorder[-1][0])
         fig_title = f"step_time_maxR_{int(total_step)}_{int(train_time)}_{self.max_r:.3f}"
 
