@@ -24,7 +24,7 @@ environment:
     x: 0
     y: 0
   render: True
-  num_envs: 10
+  num_envs: 3
   eval_every_n: 100
   num_threads: 50
   simulation_dt: 0.01
@@ -33,13 +33,13 @@ environment:
   action_std: 0.3
   reward:
     forwardVel:
-      coeff: 0.3
+        coeff: 3.0
     distance:
-      coeff: 1
-    roll:
-      coeff: 0.1
-    pitch:
-      coeff: 0.1
+        coeff: 0.1
+      #    roll:
+            #     coeff: 0.1
+      #    pitch:
+            #      coeff: 0.1
 
 architecture:
   policy_net: [128, 128]

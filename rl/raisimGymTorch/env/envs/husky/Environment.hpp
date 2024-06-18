@@ -28,9 +28,9 @@ class ENVIRONMENT : public RaisimGymEnv {
     goalpos[1]=params_.goalpos[1];
     /// create world
     world_ = std::make_unique<raisim::World>();
-
-    hm_ = world_->addHeightMap(resourceDir_ + params_.map_path, 0, 0, params_.map_param[0], 
-    params_.map_param[1], params_.map_param[2], params_.map_param[3]);
+    mapheight = params_.map_param[0],mapwidth = params_.map_param[1];
+    hm_ = world_->addHeightMap(resourceDir_ + params_.map_path, 0, 0, mapheight, 
+    mapwidth, params_.map_param[2], params_.map_param[3]);
     hm_->setAppearance("soil2");
 
     /// add objects
@@ -64,7 +64,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     husky_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
     /// MUST BE DONE FOR ALL ENVIRONMENTS
-    obDim_ = 5 ;//+ lidar_.e_.GetHeightVec().size();
+    obDim_ = 6 ;//+ lidar_.e_.GetHeightVec().size();
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     obDouble_.setZero(obDim_);
 
@@ -112,7 +112,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     // pTarget_.tail(nJoints_) = pTarget12_;
 
     // husky_->setPdTarget(pTarget_, vTarget_);
-    husky_->setGeneralizedForce({0, 0, 0, 0, 0, 0, action[0], action[1], action[2], action[3]});
+    husky_->setGeneralizedForce({0, 0, 0, 0, 0, 0, -action[0], -action[1], -action[2], -action[3]});
 
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
       if(server_) server_->lockVisualizationServerMutex();
@@ -127,10 +127,10 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     double dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
     // rewards_.record("torque", husky_->getGeneralizedForce().squaredNorm());
-    rewards_.record("forwardVel", std::min(4.0, gv_[0]));
+    rewards_.record("forwardVel", -gv_[0]);
     rewards_.record("distance", -dist/(double)(1.5*params_.map_param[0]));
-    rewards_.record("roll", -abs(obDouble_[1]));
-    rewards_.record("pitch", -abs(obDouble_[2]));
+    //rewards_.record("roll", -abs(obDouble_[1]));
+    //rewards_.record("pitch", -abs(obDouble_[2]));
 
     return rewards_.sum();
   }
@@ -143,7 +143,8 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     obDouble_ << gc_[2] - gc_init_[2], /// body height (relative to init position)
         Euler[0], Euler[1], /// body orientation
-        gc_[0] - goalpos[0],gc_[1] - goalpos[1];//,//relative position to goal
+        gc_[0] - goalpos[0],gc_[1] - goalpos[1],//relative position to goal
+	-gv_[0];//linearvelocity
         //lidar_.e_.GetHeightVec(); 
   }
 
@@ -159,7 +160,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     for(auto& contact: husky_->getContacts())
       if(wheelIndices_.find(contact.getlocalBodyIndex()) == wheelIndices_.end())
         return true;
-
+    if(abs(gc_[0])>(mapheight/2) || abs(gc_[1])>(mapwidth/2))
+	    return true;
     terminalReward = 0.f;
     return false;
   }
@@ -179,6 +181,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   Parameters params_;
   HeightMap* hm_;
   double goalpos[2]={0,0};
+  double mapheight,mapwidth;
   raisim::InstancedVisuals* scans_;
   lidar lidar_;
   
