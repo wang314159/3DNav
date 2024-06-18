@@ -86,7 +86,7 @@ class PPO:
     def update(self, actor_obs, value_obs, log_this_iteration, update):
         
         last_values = self.critic.predict(torch.from_numpy(value_obs).to(self.device))
-        print(len(last_values))
+        # print(len(last_values))
         # Learning step
         self.storage.compute_returns(last_values.to(self.device), self.critic, self.gamma, self.lam)
         mean_value_loss, mean_surrogate_loss, infos = self._train_step(log_this_iteration)

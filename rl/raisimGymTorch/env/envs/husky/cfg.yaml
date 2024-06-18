@@ -24,8 +24,8 @@ environment:
     x: 0
     y: 0
   render: True
-  num_envs: 3
-  eval_every_n: 100
+  num_envs: 10
+  eval_every_n: 20
   num_threads: 50
   simulation_dt: 0.01
   control_dt: 0.05
@@ -36,6 +36,8 @@ environment:
         coeff: 3.0
     distance:
         coeff: 0.1
+    zmove:
+        coeff: 1.0
       #    roll:
             #     coeff: 0.1
       #    pitch:

@@ -22,7 +22,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   explicit ENVIRONMENT(const std::string& resourceDir, const Yaml::Node& cfg, bool visualizable) :
       RaisimGymEnv(resourceDir, cfg), visualizable_(visualizable), normDist_(0, 1){
-
+    // std::cout<<"init env"<<std::endl;
     params_.update(cfg);
     goalpos[0]=params_.goalpos[0];
     goalpos[1]=params_.goalpos[1];
@@ -38,7 +38,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     husky_->setName("husky");
     husky_->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
     // world_->addGround();
-    lidar_.init(params_.scanSize[0], params_.scanSize[1], visualizable_);
+    //lidar_.init(params_.scanSize[0], params_.scanSize[1], visualizable_);
     /// get robot data
     gcDim_ = husky_->getGeneralizedCoordinateDim();
     gvDim_ = husky_->getDOF();
@@ -64,8 +64,9 @@ class ENVIRONMENT : public RaisimGymEnv {
     husky_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
     /// MUST BE DONE FOR ALL ENVIRONMENTS
-    obDim_ = 6 ;//+ lidar_.e_.GetHeightVec().size();
+    obDim_ = 10 ;//+ lidar_.e_.GetHeightVec().size();
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
+    bodyLinearVel_.setZero();
     obDouble_.setZero(obDim_);
 
     /// action scaling
@@ -86,15 +87,16 @@ class ENVIRONMENT : public RaisimGymEnv {
     /// visualize if it is the first environment
     if (visualizable_) {
       server_ = std::make_unique<raisim::RaisimServer>(world_.get());
-      scans_ = server_->addInstancedVisuals("scan points",
-                                          raisim::Shape::Box,
-                                          {0.01, 0.01, 0.01},
-                                          {1,0,0,1},
-                                          {0,1,0,1});
-      scans_->resize(params_.scanSize[0]*params_.scanSize[1]);
+      // scans_ = server_->addInstancedVisuals("scan points",
+      //                                     raisim::Shape::Box,
+      //                                     {0.01, 0.01, 0.01},
+      //                                     {1,0,0,1},
+      //                                     {0,1,0,1});
+      // scans_->resize(params_.scanSize[0]*params_.scanSize[1]);
       server_->launchServer();
       server_->focusOn(husky_);
     }
+    // std::cout<<"init env ok"<<std::endl;
   }
 
   void init() final { }
@@ -112,12 +114,12 @@ class ENVIRONMENT : public RaisimGymEnv {
     // pTarget_.tail(nJoints_) = pTarget12_;
 
     // husky_->setPdTarget(pTarget_, vTarget_);
-    husky_->setGeneralizedForce({0, 0, 0, 0, 0, 0, -action[0], -action[1], -action[2], -action[3]});
+    husky_->setGeneralizedForce({0, 0, 0, 0, 0, 0, action[0], action[1], action[2], action[3]});
 
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
       if(server_) server_->lockVisualizationServerMutex();
       world_->integrate();
-      lidar_.scan(world_, server_, husky_);
+      // lidar_.scan(world_, server_, husky_);
       if(server_) server_->unlockVisualizationServerMutex();
     }
     
@@ -127,8 +129,9 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     double dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
     // rewards_.record("torque", husky_->getGeneralizedForce().squaredNorm());
-    rewards_.record("forwardVel", -gv_[0]);
+    rewards_.record("forwardVel", std::min(4.0,bodyLinearVel_[0]));
     rewards_.record("distance", -dist/(double)(1.5*params_.map_param[0]));
+    rewards_.record("zmove", -bodyLinearVel_[2]);
     //rewards_.record("roll", -abs(obDouble_[1]));
     //rewards_.record("pitch", -abs(obDouble_[2]));
 
@@ -137,14 +140,19 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   void updateObservation() {
     husky_->getState(gc_, gv_);
-    Eigen::Quaterniond quaternion(gc_[3], gc_[4], gc_[5], gc_[6]);
-    Euler = quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
+    // Eigen::Quaterniond quaternion(gc_[3], gc_[4], gc_[5], gc_[6]);
+    // Euler = quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
     // std::cout<<Init_Euler<<std::endl<<std::endl;
+    raisim::Vec<4> quat;
+    raisim::Mat<3,3> rot;
+    quat[0] = gc_[3]; quat[1] = gc_[4]; quat[2] = gc_[5]; quat[3] = gc_[6];
+    raisim::quatToRotMat(quat, rot);
+    bodyLinearVel_ = rot.e().transpose() * gv_.segment(0, 3);
 
-    obDouble_ << gc_[2] - gc_init_[2], /// body height (relative to init position)
-        Euler[0], Euler[1], /// body orientation
-        gc_[0] - goalpos[0],gc_[1] - goalpos[1],//relative position to goal
-	-gv_[0];//linearvelocity
+    obDouble_ << gc_[0] - goalpos[0],gc_[1] - goalpos[1],//relative position to goal
+	      bodyLinearVel_[0],
+        rot.e().row(2).transpose(),
+        gv_.tail(4);//linearvelocity
         //lidar_.e_.GetHeightVec(); 
   }
 
@@ -176,14 +184,14 @@ class ENVIRONMENT : public RaisimGymEnv {
   double terminalRewardCoeff_ = -10.;
   Eigen::VectorXd actionMean_, actionStd_, obDouble_;
   Eigen::Vector3d Euler, Init_Euler;
-  
+  Eigen::Vector3d bodyLinearVel_;
   std::set<size_t> wheelIndices_;
   Parameters params_;
   HeightMap* hm_;
   double goalpos[2]={0,0};
   double mapheight,mapwidth;
-  raisim::InstancedVisuals* scans_;
-  lidar lidar_;
+  // raisim::InstancedVisuals* scans_;
+  // lidar lidar_;
   
 
   /// these variables are not in use. They are placed to show you how to create a random number sampler.
