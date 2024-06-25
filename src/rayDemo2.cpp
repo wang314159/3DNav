@@ -17,16 +17,17 @@ int main(int argc, char* argv[]) {
   /// create objects
   raisim::TerrainProperties terrainProperties;
   terrainProperties.frequency = 0.2;
-  terrainProperties.zScale = 2.0;
-  terrainProperties.xSize = 50.0;
-  terrainProperties.ySize = 50.0;
+  terrainProperties.zScale = 3.0;
+  terrainProperties.xSize = 20.0;
+  terrainProperties.ySize = 20.0;
   terrainProperties.xSamples = 50;
   terrainProperties.ySamples = 50;
   terrainProperties.fractalOctaves = 3;
   terrainProperties.fractalLacunarity = 2.0;
   terrainProperties.fractalGain = 0.25;
 
-  auto hm = world.addHeightMap("../data/height3.png", 0, 0, 10, 10, 0.00001, 0);
+  // auto hm = world.addHeightMap("../data/height3.png", 0, 0, 3, 3, 0.000001, 0);
+  auto hm = world.addHeightMap(0, 0, terrainProperties);
   // auto hm = world.addHeightMap("height2.png", 0, 0, 50, 50, 0.00005, 1.5);
   // auto robot = world.addArticulatedSystem(binaryPath.getDirectory() + "../data/husky/husky.urdf");
   auto robot = world.addArticulatedSystem(binaryPath.getDirectory() + "../data/nanocarpro/urdf/nanocarpro.urdf");
@@ -38,7 +39,7 @@ int main(int argc, char* argv[]) {
   int nJoints = gvDim_ - 6;
   Eigen::VectorXd gc(robot->getGeneralizedCoordinateDim()), gv(robot->getDOF()), damping(robot->getDOF());
   gc.setZero(); gv.setZero();
-  gc.segment<7>(0) << -4, -4, 0.2, 1, 0, 0, 0;
+  gc.segment<7>(0) << -1, -1, 2, 1, 0, 0, 0;
   robot->setGeneralizedCoordinate(gc);
   robot->setGeneralizedVelocity(gv);
   damping.setConstant(0);
@@ -53,7 +54,7 @@ int main(int argc, char* argv[]) {
   jointPgain.setZero(); jointPgain.tail(nJoints).setConstant(50.0);
   jointPgain[1] = 0, jointPgain[3] = 0;
   jointDgain.setZero(); jointDgain.tail(nJoints).setConstant(0.2);
-  jointDgain[1] = 0.001, jointDgain[3] = 0;
+  jointDgain[1] = 0.001, jointDgain[3] = 0.001;
   robot->setPdGains(jointPgain, jointDgain);
   robot->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
   /// launch raisim server
@@ -129,7 +130,7 @@ int main(int argc, char* argv[]) {
     vl = v/r - w*R/r;
     vtarget4 << 0,vl, 0,vr, vl, vr;
     ptarget4 += vtarget4*world.getTimeStep();
-    ptarget4[0] = 0.5, ptarget4[2] = 0.5;
+    ptarget4[0] = 0, ptarget4[2] = 0;
     // std::cout<<ptarget.size()<<std::endl;
     ptarget.tail(nJoints) = ptarget4;
     vtarget.tail(nJoints) = vtarget4;
