@@ -7,7 +7,7 @@ import sys
 
 from .config import Config 
 from .replay_buffer import ReplayBuffer
-
+import time
 
 class AgentBase:
     """
@@ -133,7 +133,8 @@ class AgentBase:
             action = torch.rand(self.num_envs, self.action_dim) * 2 - 1.0 if if_random \
                 else get_action(state).detach()
             states[t] = state  # state.shape == (num_envs, state_dim)
-            # print(action)
+            # print("1")
+            # time.sleep(0.001)
             state, reward, done, _ = env.step(action)  # next_state
             actions[t] = action
             rewards[t] = reward

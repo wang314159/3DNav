@@ -58,10 +58,12 @@ class RaisimGymVecEnv():
         self.wrapper.stopRecordingVideo()
 
     def step(self, action: Tensor) -> (Tensor, Tensor, Tensor, list[dict]): # type: ignore
-        self.wrapper.step(action.cpu().numpy(), self._reward, self._done)
+        # print("step")
+        self.wrapper.step(action.cpu().detach().numpy(), self._reward, self._done)
         states = torch.tensor(self._observations, dtype=torch.float32, device=self.device)
         rewards = torch.tensor(self._reward, dtype=torch.float32, device=self.device)
         dones = torch.tensor(self._done, dtype=torch.bool, device=self.device)
+        
         return states, rewards, dones,{}
 
     def load_scaling(self, dir_name, iteration, count=1e5):

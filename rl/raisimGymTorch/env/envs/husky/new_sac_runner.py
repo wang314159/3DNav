@@ -38,11 +38,12 @@ if __name__ == '__main__':
     cfg = YAML().load(open(task_path + "/cfg.yaml", 'r'))
     max_step = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
     env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
+    env.seed(cfg['seed'])
     print("env created")
     # env.turn_off_visualization()
     eval_interval = 10
     epoches = 100000
-    env.seed(cfg['seed'])
+    
     env_args = {
         'env_name': 'Husky',  # the environment name
         'max_step': max_step,  # the max step number of an episode.
@@ -77,10 +78,12 @@ if __name__ == '__main__':
     # env = build_env(args.env_class, args.env_args, args.gpu_id)
 
     '''init agent'''
+    print("creating agent")
     agent = AgentSAC(args.net_dims, args.state_dim, args.action_dim, gpu_id=args.gpu_id, args=args)
     agent.save_or_load_agent(args.cwd, if_save=False)
 
     '''init agent.last_state'''
+    print("creating state")
     state = env.reset()
 
     assert state.shape == (args.num_envs, args.state_dim)
@@ -89,7 +92,7 @@ if __name__ == '__main__':
     agent.last_state = state.detach()
 
     '''init buffer'''
-
+    print("creating buffer")
     buffer = ReplayBuffer(
         gpu_id=args.gpu_id,
         num_seqs=args.num_envs,
@@ -99,13 +102,16 @@ if __name__ == '__main__':
         if_use_per=args.if_use_per,
         args=args,
     )
+    print("exploring env")
     buffer_items = agent.explore_env(env, args.horizon_len * args.eval_times, if_random=True)
+    print("updating buffer")
     buffer.update(buffer_items)  # warm up for ReplayBuffer
 
     '''init evaluator'''
-    eval_env_class = args.eval_env_class if args.eval_env_class else args.env_class
-    eval_env_args = args.eval_env_args if args.eval_env_args else args.env_args
+    eval_env_class = args.env_class
+    eval_env_args = args.env_args
     # eval_env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
+    print("creating evaluator")
     evaluator = Evaluator(cwd=args.cwd, env=env, args=args, if_wandb=use_wandb)
 
     '''train loop'''

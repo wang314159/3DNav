@@ -37,7 +37,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     husky_ = world_->addArticulatedSystem(resourceDir_+ params_.robot_urdf);
     husky_->setName("husky");
     husky_->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
-    // world_->addGround();
+    world_->addGround();
     //lidar_.init(params_.scanSize[0], params_.scanSize[1], visualizable_);
     /// get robot data
     gcDim_ = husky_->getGeneralizedCoordinateDim();
@@ -47,7 +47,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     /// initialize containers
     gc_.setZero(gcDim_); gc_init_.setZero(gcDim_);
     gv_.setZero(gvDim_); gv_init_.setZero(gvDim_);
-    pTarget_.setZero(gcDim_); vTarget_.setZero(gvDim_); pTarget12_.setZero(nJoints_);
+    pTarget_.setZero(gcDim_); vTarget_.setZero(gvDim_);vTarget4_.setZero(gvDim_); pTarget4_.setZero(nJoints_);
 
     /// this is nominal configuration of husky
     // gc_init_ << -20, -20, 0.2, 1, 0, 0, 0;
@@ -64,8 +64,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     husky_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
     /// MUST BE DONE FOR ALL ENVIRONMENTS
-    obDim_ = 10 ;//+ lidar_.e_.GetHeightVec().size();
-    actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
+    obDim_ = 11 ;//+ lidar_.e_.GetHeightVec().size();
+    actionDim_ = 2; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     bodyLinearVel_.setZero();
     obDouble_.setZero(obDim_);
 
@@ -107,6 +107,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   }
 
   float step(const Eigen::Ref<EigenVec>& action) final {
+    // std::cout<<"step"<<std::endl;
     /// action scaling
     // pTarget12_ = action.cast<double>();
     // pTarget12_ = pTarget12_.cwiseProduct(actionStd_);
@@ -114,10 +115,24 @@ class ENVIRONMENT : public RaisimGymEnv {
     // pTarget_.tail(nJoints_) = pTarget12_;
 
     // husky_->setPdTarget(pTarget_, vTarget_);
-    husky_->setGeneralizedForce({0, 0, 0, 0, 0, 0, action[0], action[1], action[2], action[3]});
-
-    for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
+    // std::cout<<"step begin"<<std::endl;
+    // std::cout<<action[0]<<" "<<action[1]<<std::endl;
+    // std::cout<<"???????????"<<std::endl;
+    vr = action[0] + action[1]*R/r;
+    vl = action[0] - action[1]*R/r;
+    vTarget4_ << vl, vr, vl, vr;
+    // std::cout<<"step begin2"<<std::endl;
+    husky_->getState(gc_,gv_);
+    pTarget4_=gc_.tail(nJoints_);
+    pTarget4_ += vTarget4_*(control_dt_+simulation_dt_);
+    vTarget_.tail(nJoints_) = vTarget4_;
+    pTarget_.tail(nJoints_) = pTarget4_;
+    husky_->setPdTarget(pTarget_,vTarget_);
+    // husky_->setGeneralizedForce({0, 0, 0, 0, 0, 0, action[0], action[1], action[2], action[3]});
+    // std::cout<<"begin integrate"<<std::endl;
+    for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-5); i++){
       if(server_) server_->lockVisualizationServerMutex();
+      // std::cout<<"integrate"<<std::endl;
       world_->integrate();
       // lidar_.scan(world_, server_, husky_);
       if(server_) server_->unlockVisualizationServerMutex();
@@ -125,16 +140,18 @@ class ENVIRONMENT : public RaisimGymEnv {
     
     // std::cout<<lidar_.e_.GetHeightVec()[77]<<std::endl;
     // if(visualizable_) lidar_.visualize(scans_);
+    // std::cout<<"observe"<<std::endl;
     updateObservation();
+    // std::cout<<"observation"<<std::endl;
 
     double dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
-    // rewards_.record("torque", husky_->getGeneralizedForce().squaredNorm());
+    rewards_.record("torque", husky_->getGeneralizedForce().squaredNorm());
     rewards_.record("forwardVel", std::min(4.0,bodyLinearVel_[0]));
     rewards_.record("distance", -dist/(double)(1.5*params_.map_param[0]));
-    rewards_.record("zmove", -bodyLinearVel_[2]);
+    // rewards_.record("zmove", -bodyLinearVel_[2]);
     //rewards_.record("roll", -abs(obDouble_[1]));
     //rewards_.record("pitch", -abs(obDouble_[2]));
-
+    // std::cout<<"step c++ end"<<std::endl;
     return rewards_.sum();
   }
 
@@ -148,11 +165,13 @@ class ENVIRONMENT : public RaisimGymEnv {
     quat[0] = gc_[3]; quat[1] = gc_[4]; quat[2] = gc_[5]; quat[3] = gc_[6];
     raisim::quatToRotMat(quat, rot);
     bodyLinearVel_ = rot.e().transpose() * gv_.segment(0, 3);
+    bodyAngularVel_ = rot.e().transpose() * gv_.segment(3, 3);
 
     obDouble_ << gc_[0] - goalpos[0],gc_[1] - goalpos[1],//relative position to goal
-	      bodyLinearVel_[0],
+	      bodyLinearVel_[0],//linearvelocity
+        bodyAngularVel_[2],
         rot.e().row(2).transpose(),
-        gv_.tail(4);//linearvelocity
+        gv_.tail(4);
         //lidar_.e_.GetHeightVec(); 
   }
 
@@ -180,16 +199,17 @@ class ENVIRONMENT : public RaisimGymEnv {
   int gcDim_, gvDim_, nJoints_;
   bool visualizable_ = false;
   raisim::ArticulatedSystem* husky_;
-  Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget12_, pTarget_, vTarget_;
+  Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget4_, vTarget_,vTarget4_;
   double terminalRewardCoeff_ = -10.;
   Eigen::VectorXd actionMean_, actionStd_, obDouble_;
   Eigen::Vector3d Euler, Init_Euler;
-  Eigen::Vector3d bodyLinearVel_;
+  Eigen::Vector3d bodyLinearVel_,bodyAngularVel_;
   std::set<size_t> wheelIndices_;
   Parameters params_;
   HeightMap* hm_;
   double goalpos[2]={0,0};
   double mapheight,mapwidth;
+  double r=0.17775,R=0.2854,vl,vr;
   // raisim::InstancedVisuals* scans_;
   // lidar lidar_;
   

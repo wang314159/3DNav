@@ -75,9 +75,9 @@ class Evaluator:
         # print(reward_dict)
         self.info_dict["info/critic_loss"]=logging_tuple[0]
         self.info_dict["info/actor_obj"]=-1 * logging_tuple[1]
-        self.info_dict["reward/sum_avg"]=avg_r
-        self.info_dict["reward/sum_std"]=std_r
-        self.info_dict["reward/sum_exp"]=exp_r
+        self.info_dict["info/sum_avg"]=avg_r
+        self.info_dict["info/sum_std"]=std_r
+        self.info_dict["info/sum_exp"]=exp_r
         # print(self.info_dict)
         if self.wandb_log:
             wandb.log(reward_dict | self.info_dict, epoch)
