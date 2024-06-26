@@ -71,7 +71,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     nanocar_->setGeneralizedVelocity(gv_init_);
     
     init_dist=sqrt((gc_init_[0]-goalpos[0])*(gc_init_[0]-goalpos[0])+(gc_init_[1]-goalpos[1])*(gc_init_[1]-goalpos[1]));
-    last_dist=init_dist;
+    last_dist=dist=init_dist;
     /// set pd gains
     Eigen::VectorXd jointPgain(gvDim_), jointDgain(gvDim_);
     jointPgain.setZero(); jointPgain.tail(nJoints_).setConstant(50.0);
@@ -239,7 +239,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   HeightMap* hm_;
   double goalpos[2]={0,0};
   double mapheight,mapwidth;
-  double vr,vl,r=0.0335,d=0.08725,v,w,R,l=0.14353,theta,dist=1e3,last_dist=dist,init_dist=dist;
+  double vr,vl,r=0.0335,d=0.08725,v,w,R,l=0.14353,theta,dist,last_dist=dist,init_dist=dist;
   // raisim::InstancedVisuals* scans_;
   // lidar lidar_;
   

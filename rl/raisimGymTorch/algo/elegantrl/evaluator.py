@@ -39,11 +39,11 @@ class Evaluator:
               "\n| `stdR`: Standard dev of cumulative rewards, which is the sum of rewards in an episode."
               "\n| `avgS`: Average of steps in an episode."
               "\n| `objC`: Objective of Critic network. Or call it loss function of critic network."
-              "\n| `objA`: Objective of Actor network. It is the average Q value of the critic network."
-              f"\n{'#' * 80}\n"
-              f"{'ID':<3}{'Epoches':>8}{'Time':>8} |"
-              f"{'avgR':>8}{'stdR':>7}{'avgS':>7}{'stdS':>6} |"
-              f"{'expR':>8}{'objC':>7}{'objA':>7}{'etc.':>7}")
+              "\n| `objA`: Objective of Actor network. It is the average Q value of the critic network.")
+            #   f"\n{'#' * 80}\n"
+            #   f"{'ID':<3}{'Epoches':>8}{'Time':>8} |"
+            #   f"{'avgR':>8}{'stdR':>7}{'avgS':>7}{'stdS':>6} |"
+            #   f"{'expR':>8}{'objC':>7}{'objA':>7}{'etc.':>7}")
         if getattr(env, 'num_envs', 1) == 1:  # get attribute
             self.get_cumulative_rewards_and_step = self.get_cumulative_rewards_and_step_single_env
         else:  # vectorized environment
@@ -97,13 +97,13 @@ class Evaluator:
         '''print some information to Terminal'''
         prev_max_r = self.max_r
         self.max_r = max(self.max_r, avg_r)  # update max average cumulative rewards
-        print("====================================================")
+        print("======================================================")
         # print(f"{self.agent_id:<3}{epoch:8.0f}{train_time:8.0f} |"
         #       f"{avg_r:8.2f}{std_r:7.1f}{avg_s:7.0f}{std_s:6.0f} |"
         #       f"{exp_r:8.2f}{''.join(f'{n:7.2f}' for n in logging_tuple)}")
         print(f"| epoch: {epoch:8.0f} | time: {train_time:8.0f} | avg_r: {avg_r:8.2f} |\n"
               f"| std_r: {std_r:8.1f} | avg_s: {avg_s:7.0f} | std_s: {std_s:8.0f} |")
-        print("====================================================")
+        print("======================================================")
         
         self.last_time = time.time()
         
