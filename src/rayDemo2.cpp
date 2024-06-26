@@ -6,6 +6,9 @@
 #include<pcl/io/ply_io.h>
 #include <pcl/common/common_headers.h>
 #include "lidar.hpp"
+#include <cmath>
+
+#define PI 3.1415926
 
 
 int main(int argc, char* argv[]) {
@@ -39,13 +42,13 @@ int main(int argc, char* argv[]) {
   int nJoints = gvDim_ - 6;
   Eigen::VectorXd gc(robot->getGeneralizedCoordinateDim()), gv(robot->getDOF()), damping(robot->getDOF());
   gc.setZero(); gv.setZero();
-  gc.segment<7>(0) << -1, -1, 2, 1, 0, 0, 0;
+  gc.segment<7>(0) << -8, -8, 2.1, 1, 0, 0, 0;
   robot->setGeneralizedCoordinate(gc);
   robot->setGeneralizedVelocity(gv);
   damping.setConstant(0);
   damping.tail(nJoints).setConstant(1.);
   robot->setJointDamping(damping);
-  // world.setGravity({0, 0, -9.81});
+  world.setGravity({0, 0, -9.81});
   robot->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
   Eigen::VectorXd vtarget(robot->getDOF()),vtarget4(nJoints),ptarget(gcDim_),ptarget4(nJoints);
   ptarget.setZero(), ptarget4.setZero();
@@ -73,9 +76,9 @@ int main(int argc, char* argv[]) {
   // scans->resize(scanSize1*scanSize2);
   server.launchServer();
   server.focusOn(robot);
-  double vr,vl,r=0.0335,R=0.1745,v,w;
+  double vr,vl,r=0.0335,d=0.1745/2,v,w,R,l=0.14353,theta;
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-  Eigen::Vector3d Euler, Init_Euler, bodyLinearVel_;
+  Eigen::Vector3d Euler, Init_Euler, bodyLinearVel_, bodyAngularVel_ ;
   Eigen::Vector3d direction;
   Eigen::Quaterniond quaternion_init(1, 0, 0, 0);
   
@@ -125,30 +128,34 @@ int main(int argc, char* argv[]) {
     // }
     // robot->setGeneralizedVelocity({0, 0, 0, 0, 0, 0, 20, 20, -20, -20});
     // robot->setGeneralizedVelocity({1, 0, 0, 0, 0, 0, 0, 0, 0, 0});
-    v=1,w=0;
-    vr = v/r + w*R/r;
-    vl = v/r - w*R/r;
+    v=-0.92,w=0;
+    vr = (v + w*d)/r;
+    vl = (v - w*d)/r;
+    theta = atan(l*w/v);
     vtarget4 << 0,vl, 0,vr, vl, vr;
     ptarget4 += vtarget4*world.getTimeStep();
-    ptarget4[0] = 0, ptarget4[2] = 0;
+    std::cout<<"theta"<<theta<<"vr"<<vr<<"vl"<<vl<<std::endl;
+    ptarget4[0] = theta, ptarget4[2] = theta;
     // std::cout<<ptarget.size()<<std::endl;
     ptarget.tail(nJoints) = ptarget4;
     vtarget.tail(nJoints) = vtarget4;
     robot->setPdTarget(ptarget,vtarget);
     
     // gc = robot->getGeneralizedCoordinate().e();
-    // robot->getState(gc, gv);
+    robot->getState(gc, gv);
     // Eigen::Quaterniond quaternion(gc[3], gc[4], gc[5], gc[6]);
     // Euler = quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
-    // raisim::Vec<4> quat;
-    // raisim::Mat<3,3> rot;
-    // quat[0] = gc[3]; quat[1] = gc[4]; quat[2] = gc[5]; quat[3] = gc[6];
-    // raisim::quatToRotMat(quat, rot);
-    // bodyLinearVel_ = rot.e().transpose() * gv.segment(0, 3);
+    raisim::Vec<4> quat;
+    raisim::Mat<3,3> rot;
+    quat[0] = gc[3]; quat[1] = gc[4]; quat[2] = gc[5]; quat[3] = gc[6];
+    raisim::quatToRotMat(quat, rot);
+    bodyLinearVel_ = rot.e().transpose() * gv.segment(0, 3);
+    bodyAngularVel_ = rot.e().transpose() * gv.segment(3, 3);
     // std::cout<<"gc:"<<gc[3]<<" "<<gc[4]<<" "<<gc[5]<<" "<<gc[6]<<std::endl;
     // std::cout<<Euler[0]<<" "<<Euler[1]<<std::endl<<std::endl;
     // std::cout<<rot.e().row(2)<<std::endl;
-    // std::cout<<bodyLinearVel_<<std::endl;
+    // std::cout<<bodyLinearVel_[0]<<" "<<bodyAngularVel_[2]<<std::endl;
+    std::cout<<gc[0]<<std::endl;
     if(fabs(gc[0])>35. || fabs(gc[1])>35.) {
       gc.segment<7>(0) << 0, 0, 2, 1, 0, 0, 0;
       gv.setRandom();

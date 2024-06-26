@@ -8,14 +8,14 @@ environment:
     height: 20
     ratio: 0.00001
     z_offset: 0
-  robot_urdf: "/husky/husky.urdf"
+  robot_urdf: "/nanocarpro/urdf/nanocarpro.urdf"
   scan:
     size1: 50
     size2: 30
   gc_init: 
     x: -8
     y: -8
-    z: 2.5
+    z: 2.2
     qx: 1
     qy: 0.0
     qz: 0.0

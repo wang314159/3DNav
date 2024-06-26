@@ -5,8 +5,8 @@ import os
 from ruamel.yaml import YAML, dump, RoundTripDumper
 from raisimGymTorch.env.EleRLRaisimGymVecEnv import RaisimGymVecEnv as VecEnv
 from raisimGymTorch.helper.raisim_gym_helper import ConfigurationSaver, load_param, tensorboard_launcher
-from raisimGymTorch.env.bin.husky import NormalSampler
-from raisimGymTorch.env.bin.husky import RaisimGymEnv
+from raisimGymTorch.env.bin.nanocar import NormalSampler
+from raisimGymTorch.env.bin.nanocar import RaisimGymEnv
 
 import copy
 import sys
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     env_class = VecEnv  # run a custom env: PendulumEnv, which based on OpenAI pendulum
     use_wandb = True
     if use_wandb:
-        wandb.init(project="husky_navigation")
+        wandb.init(project="nanocar_navigation")
     # get_gym_env_args(env=PendulumEnv(), if_print=True)  # return env_args
     task_path = os.path.dirname(os.path.realpath(__file__))
     home_path = task_path + "/../../../../.."
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     epoches = 100000
     
     env_args = {
-        'env_name': 'Husky',  # the environment name
+        'env_name': 'Nanocar',  # the environment name
         'max_step': max_step,  # the max step number of an episode.
         'state_dim': env.state_dim,  # the x-y coordinates of the pendulum's free end and its angular velocity.
         'action_dim': env.action_dim,  # the torque applied to free end of the pendulum
@@ -123,6 +123,7 @@ if __name__ == '__main__':
 
     if_train = True
     for i in range(epoches):
+        print(i)
         buffer_items = agent.explore_env(env, horizon_len)
 
         exp_r = buffer_items[2].mean().item()
@@ -134,9 +135,9 @@ if __name__ == '__main__':
         if(i%eval_interval==0):
         #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
         # eval_env.turn_on_visualization()
-           #  env.turn_on_visualization()
+            # env.turn_on_visualization()
             evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
-           #  env.turn_off_visualization()
+            # env.turn_off_visualization()
         # if_train = (evaluator.total_step <= break_step) and (not os.path.exists(f"{cwd}/stop"))
 
     print(f'| UsedTime: {time.time() - evaluator.start_time:>7.0f} | SavedDir: {cwd}')

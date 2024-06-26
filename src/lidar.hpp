@@ -58,16 +58,16 @@ void lidar::scan(raisim::World& world, raisim::RaisimServer& server, raisim::Art
             pitch = -(i * 0.4/pitchsize_) + 0.25;
             const double normInv = 1. / sqrt(pitch * pitch + 1);
             direction = {cos(yaw) * normInv, sin(yaw) * normInv, -pitch * normInv};
-            robot->getFramePosition("imu_joint", lidarPos);
-            robot->getFrameOrientation("imu_joint", lidarOri);
+            robot->getFramePosition("laser_joint", lidarPos);
+            robot->getFrameOrientation("laser_joint", lidarOri);
             rayDirection = lidarOri.e() * direction;
             auto &col = world.rayTest(lidarPos.e(), rayDirection, 30);
             if (col.size() > 0) {
                 auto relative_pos = col[0].getPosition() - lidarPos.e();
                 float length = relative_pos.norm();
-                pcl::PointXYZ point ={relative_pos[0],relative_pos[1],relative_pos[2]+0.5};
+                pcl::PointXYZ point ={(float)relative_pos[0],(float)relative_pos[1],(float)(relative_pos[2]+0.5)};
                 cloud->push_back(point);
-                if(length>1){
+                if(length>0){
                     if(visualizable_){
                         // std::cout<<"visualize"<<std::endl;
                         scans->setPosition(i * pitchsize_ + j, col[0].getPosition());

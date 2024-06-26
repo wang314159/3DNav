@@ -95,7 +95,7 @@ class AgentBase:
             action = torch.rand(1, self.action_dim) * 2 - 1.0 if if_random else get_action(state)
             states[t] = state
 
-            ary_action = action[0].detach().cpu().numpy()
+            ary_action = action[0]
             ary_state, reward, done, _ = env.step(ary_action)  # next_state
             ary_state = env.reset() if done else ary_state  # ary_state.shape == (state_dim, )
             state = torch.as_tensor(ary_state, dtype=torch.float32, device=self.device).unsqueeze(0)
