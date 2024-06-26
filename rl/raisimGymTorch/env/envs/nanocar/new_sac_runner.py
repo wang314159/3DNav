@@ -39,7 +39,7 @@ if __name__ == '__main__':
     env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
     env.seed(cfg['seed'])
     print("env created")
-    # env.turn_off_visualization()
+    env.turn_off_visualization()
     eval_interval = 10
     epoches = 100000
     
@@ -55,8 +55,8 @@ if __name__ == '__main__':
     }
     print(env_args)
     args = Config(agent_class, env_class, env_args)  # see `config.py Arguments()` for hyperparameter explanation
-    args.net_dims = (128, 64)  # the middle layer dimension of MultiLayer Perceptron
-    args.batch_size = 512  # vectorized env need a larger batch_size
+    args.net_dims = (64, 128, 64)  # the middle layer dimension of MultiLayer Perceptron
+    args.batch_size = 256  # vectorized env need a larger batch_size
     args.gamma = 0.97  # discount factor of future rewards
     args.horizon_len = args.max_step
 
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     if_off_policy = args.if_off_policy
     if_save_buffer = args.if_save_buffer
     del args
-
+    env.turn_on_visualization()
     if_train = True
     for i in range(epoches):
         # print(i)
@@ -138,7 +138,7 @@ if __name__ == '__main__':
         if(i%eval_interval==0):
         #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
         # eval_env.turn_on_visualization()
-            # env.turn_on_visualization()
+            env.turn_on_visualization()
             print("evaluating")
             evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
             # print("evaluated")

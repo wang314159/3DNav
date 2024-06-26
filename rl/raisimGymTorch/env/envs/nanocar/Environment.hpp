@@ -103,6 +103,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     /// visualize if it is the first environment
     if (visualizable_) {
       server_ = std::make_unique<raisim::RaisimServer>(world_.get());
+      goal_ = server_->addVisualCylinder("goal",0.1,2);
+      goal_->setPosition({goalpos[0],goalpos[1],1});
       // scans_ = server_->addInstancedVisuals("scan points",
       //                                     raisim::Shape::Box,
       //                                     {0.01, 0.01, 0.01},
@@ -156,15 +158,22 @@ class ENVIRONMENT : public RaisimGymEnv {
       if(server_) server_->unlockVisualizationServerMutex();
     }
     
-    // std::cout<<lidar_.e_.GetHeightVec()[77]<<std::endl;
     // if(visualizable_) lidar_.visualize(scans_);
     // std::cout<<"observe"<<std::endl;
     updateObservation();
     // std::cout<<"observation"<<std::endl;
 
-    rewards_.record("torque", nanocar_->getGeneralizedForce().squaredNorm());
+    // rewards_.record("torque", nanocar_->getGeneralizedForce().squaredNorm());
     rewards_.record("forwardVel", std::min(4.0,bodyLinearVel_[0]));
-    rewards_.record("distance", dist-last_dist);
+    rewards_.record("distance", last_dist-dist);
+    // if(visualizable_)
+    // std::cout<<bodyLinearVel_[0]<<" "<<dist<<" "<<last_dist<<std::endl;
+    if(dist<0.1){
+      std::cout<<"reach goal"<<std::endl;
+      rewards_.record("reach", 1);
+    }else{
+      rewards_.record("reach", 0);
+    }
     last_dist=dist;
     // rewards_.record("zmove", -bodyLinearVel_[2]);
     //rewards_.record("roll", -abs(obDouble_[1]));
@@ -214,7 +223,7 @@ class ENVIRONMENT : public RaisimGymEnv {
       return true;
     }
     if(dist<0.1){
-      std::cout<<"reach goal"<<std::endl;
+      // std::cout<<"reach goal"<<std::endl;
       terminalReward = 100;
       return true;
     }
@@ -241,6 +250,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   double mapheight,mapwidth;
   double vr,vl,r=0.0335,d=0.08725,v,w,R,l=0.14353,theta,dist,last_dist=dist,init_dist=dist;
   // raisim::InstancedVisuals* scans_;
+  raisim::Visuals* goal_;
   // lidar lidar_;
   
 
