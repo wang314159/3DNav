@@ -123,7 +123,9 @@ if __name__ == '__main__':
 
     if_train = True
     for i in range(epoches):
-        print(i)
+        # print(i)
+        state = env.reset()
+        agent.last_state = state.to(agent.device).detach()
         buffer_items = agent.explore_env(env, horizon_len)
 
         exp_r = buffer_items[2].mean().item()
@@ -132,11 +134,14 @@ if __name__ == '__main__':
         torch.set_grad_enabled(True)
         logging_tuple = agent.update_net(buffer)
         torch.set_grad_enabled(False)
+        print(f"| epoch: {i:3d} | exp_r: {exp_r:7.2f} | critic_loss: {logging_tuple[0]:7.2f} | actor_loss: {logging_tuple[1]:7.2f} | alpha_loss: {logging_tuple[2]:7.2f} |")
         if(i%eval_interval==0):
         #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
         # eval_env.turn_on_visualization()
             # env.turn_on_visualization()
+            print("evaluating")
             evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
+            # print("evaluated")
             # env.turn_off_visualization()
         # if_train = (evaluator.total_step <= break_step) and (not os.path.exists(f"{cwd}/stop"))
 

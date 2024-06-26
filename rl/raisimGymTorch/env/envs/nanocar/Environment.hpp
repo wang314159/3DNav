@@ -66,11 +66,12 @@ class ENVIRONMENT : public RaisimGymEnv {
     /// this is nominal configuration of nanocar
     // gc_init_ << -20, -20, 0.2, 1, 0, 0, 0;
     gc_init_ = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params_.gc_init, 7);
-    std::cout<<"gc_init"<<gc_init_[0]<<"gc_"<<gc_[0]<<std::endl;
+    // std::cout<<"gc_init"<<gc_init_[0]<<"gc_"<<gc_[0]<<std::endl;
     nanocar_->setGeneralizedCoordinate(gc_init_);
     nanocar_->setGeneralizedVelocity(gv_init_);
     
-
+    init_dist=sqrt((gc_init_[0]-goalpos[0])*(gc_init_[0]-goalpos[0])+(gc_init_[1]-goalpos[1])*(gc_init_[1]-goalpos[1]));
+    last_dist=init_dist;
     /// set pd gains
     Eigen::VectorXd jointPgain(gvDim_), jointDgain(gvDim_);
     jointPgain.setZero(); jointPgain.tail(nJoints_).setConstant(50.0);
@@ -94,10 +95,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     rewards_.initializeFromConfigurationFile (cfg["reward"]);
 
     /// indices of links that should not make contact with ground
-    wheelIndices_.insert(nanocar_->getBodyIdx("front_left_wheel_link"));
-    wheelIndices_.insert(nanocar_->getBodyIdx("front_right_wheel_link"));
-    wheelIndices_.insert(nanocar_->getBodyIdx("rear_left_wheel_link"));
-    wheelIndices_.insert(nanocar_->getBodyIdx("rear_right_wheel_link"));
+    wheelIndices_.insert(nanocar_->getBodyIdx("/front_left_wheel_link"));
+    wheelIndices_.insert(nanocar_->getBodyIdx("/front_right_wheel_link"));
+    wheelIndices_.insert(nanocar_->getBodyIdx("/back_left_wheel_link"));
+    wheelIndices_.insert(nanocar_->getBodyIdx("/back_right_wheel_link"));
 
     /// visualize if it is the first environment
     if (visualizable_) {
@@ -117,35 +118,31 @@ class ENVIRONMENT : public RaisimGymEnv {
   void init() final { }
 
   void reset() final {
+    // std::cout<<"reset"<<std::endl;
     nanocar_->setState(gc_init_, gv_init_);
+    pTarget_.setZero(); vTarget_.setZero();vTarget4_.setZero(); pTarget4_.setZero();
+    last_dist=init_dist;
+    // std::cout<<"gc_init"<<gc_init_[0]<<""<<gc_init_[1]<<std::endl;
     updateObservation();
+    // last_dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
+    // std::cout<<"observe"<<gc_[0]<<std::endl;
   }
 
   float step(const Eigen::Ref<EigenVec>& action) final {
     // std::cout<<"step"<<std::endl;
-    /// action scaling
-    // pTarget12_ = action.cast<double>();
-    // pTarget12_ = pTarget12_.cwiseProduct(actionStd_);
-    // pTarget12_ += actionMean_;
-    // pTarget_.tail(nJoints_) = pTarget12_;
-
-    // nanocar_->setPdTarget(pTarget_, vTarget_);
-    // std::cout<<"step begin"<<std::endl;
-    // std::cout<<action[0]<<" "<<action[1]<<std::endl;
-    // std::cout<<"???????????"<<std::endl;
-    // v=action[0],w=action[1];
-    v=1,w=0;
-    // v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-1.0,1.0);
-    // w=std::clamp(w,-abs(v),abs(v));
+    v=action[0],w=action[1];
+    // v=0.5,w=0;
+    v=std::clamp(v,-1.5,1.5),w=std::clamp(w,-1.0,1.0);
+    w=std::clamp(w,-abs(v),abs(v));
     // std::cout<<"v"<<v<<"w"<<w<<std::endl;
     vr = (v + w*d)/r;
     vl = (v - w*d)/r;
-    theta = atan(l*w/(v+0.001));
+    theta = atan(l*w/(v+0.0001));
     // std::cout<<"theta"<<theta<<"vr"<<vr<<"vl"<<vl<<std::endl;
     // vTarget4_ << 0,0,0,0,1,1;
     vTarget4_ <<0,vl, 0,vr, vl, vr;
     pTarget4_ += vTarget4_*(control_dt_);
-    // pTarget4_[0] = theta, pTarget4_[2] = theta;
+    pTarget4_[0] = theta, pTarget4_[2] = theta;
     vTarget_.tail(nJoints_) = vTarget4_;
     pTarget_.tail(nJoints_) = pTarget4_;
     nanocar_->setPdTarget(pTarget_,vTarget_);
@@ -165,10 +162,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     updateObservation();
     // std::cout<<"observation"<<std::endl;
 
-    double dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
     rewards_.record("torque", nanocar_->getGeneralizedForce().squaredNorm());
     rewards_.record("forwardVel", std::min(4.0,bodyLinearVel_[0]));
-    rewards_.record("distance", -dist/(double)(1.5*params_.map_param[0]));
+    rewards_.record("distance", dist-last_dist);
+    last_dist=dist;
     // rewards_.record("zmove", -bodyLinearVel_[2]);
     //rewards_.record("roll", -abs(obDouble_[1]));
     //rewards_.record("pitch", -abs(obDouble_[2]));
@@ -182,6 +179,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     // Eigen::Quaterniond quaternion(gc_[3], gc_[4], gc_[5], gc_[6]);
     // Euler = quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
     // std::cout<<Init_Euler<<std::endl<<std::endl;
+    dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
     raisim::Vec<4> quat;
     raisim::Mat<3,3> rot;
     quat[0] = gc_[3]; quat[1] = gc_[4]; quat[2] = gc_[5]; quat[3] = gc_[6];
@@ -206,16 +204,20 @@ class ENVIRONMENT : public RaisimGymEnv {
     terminalReward = float(terminalRewardCoeff_);
 
     /// if the contact body is not feet
-    // for(auto& contact: nanocar_->getContacts())
-    //   if(wheelIndices_.find(contact.getlocalBodyIndex()) == wheelIndices_.end())
-    //     return true;
+    for(auto& contact: nanocar_->getContacts())
+      if(wheelIndices_.find(contact.getlocalBodyIndex()) == wheelIndices_.end())
+        return true;
     // std::cout<<gc_[0]<<" "<<std::endl;
-    // if(abs(gc_[0])>(mapheight/2) || abs(gc_[1])>(mapwidth/2)){
-      
-    //   std::cout<<" "<<gc_[0]<<" "<<gc_[1]<<std::endl;
-    //   std::cout<<"break"<<std::endl;
-    //   return true;
-    // }
+    if(abs(gc_[0])>(mapheight/2) || abs(gc_[1])>(mapwidth/2)){
+      // std::cout<<" "<<gc_[0]<<" "<<gc_[1]<<std::endl;
+      // std::cout<<"break"<<std::endl;
+      return true;
+    }
+    if(dist<0.1){
+      std::cout<<"reach goal"<<std::endl;
+      terminalReward = 100;
+      return true;
+    }
 	    
     terminalReward = 0.f;
     return false;
@@ -237,7 +239,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   HeightMap* hm_;
   double goalpos[2]={0,0};
   double mapheight,mapwidth;
-  double vr,vl,r=0.0335,d=0.1745/2,v,w,R,l=0.14353,theta;
+  double vr,vl,r=0.0335,d=0.08725,v,w,R,l=0.14353,theta,dist=1e3,last_dist=dist,init_dist=dist;
   // raisim::InstancedVisuals* scans_;
   // lidar lidar_;
   

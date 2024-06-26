@@ -130,6 +130,7 @@ class AgentBase:
         state = self.last_state  # last_state.shape == (num_envs, state_dim)
         get_action = self.act.get_action
         for t in range(horizon_len):
+            # print("t: ", t)
             action = torch.rand(self.num_envs, self.action_dim) * 2 - 1.0 if if_random \
                 else get_action(state).detach()
             states[t] = state  # state.shape == (num_envs, state_dim)

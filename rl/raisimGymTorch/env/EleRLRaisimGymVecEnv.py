@@ -92,7 +92,7 @@ class RaisimGymVecEnv():
     def reset(self) -> Tensor:
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
         self.wrapper.reset()
-        states = torch.tensor(self.observe(), dtype=torch.float32, device=self.device)
+        states = torch.tensor(self._observations, dtype=torch.float32, device=self.device)
         return states
 
     def close(self):

@@ -97,9 +97,13 @@ class Evaluator:
         '''print some information to Terminal'''
         prev_max_r = self.max_r
         self.max_r = max(self.max_r, avg_r)  # update max average cumulative rewards
-        print(f"{self.agent_id:<3}{epoch:8.0f}{train_time:8.0f} |"
-              f"{avg_r:8.2f}{std_r:7.1f}{avg_s:7.0f}{std_s:6.0f} |"
-              f"{exp_r:8.2f}{''.join(f'{n:7.2f}' for n in logging_tuple)}")
+        print("====================================================")
+        # print(f"{self.agent_id:<3}{epoch:8.0f}{train_time:8.0f} |"
+        #       f"{avg_r:8.2f}{std_r:7.1f}{avg_s:7.0f}{std_s:6.0f} |"
+        #       f"{exp_r:8.2f}{''.join(f'{n:7.2f}' for n in logging_tuple)}")
+        print(f"| epoch: {epoch:8.0f} | time: {train_time:8.0f} | avg_r: {avg_r:8.2f} |\n"
+              f"| std_r: {std_r:8.1f} | avg_s: {avg_s:7.0f} | std_s: {std_s:8.0f} |")
+        print("====================================================")
         
         self.last_time = time.time()
         
@@ -208,6 +212,7 @@ class Evaluator:
 
 
     def get_cumulative_rewards_and_step_from_vec_env(self, env, actor) -> List[Tuple[float, int]]:
+        # print("get_cumulative_rewards_and_step_from_vec_env")
         device = env.device
         env_num = env.num_envs
         max_step = env.max_step
@@ -223,11 +228,12 @@ class Evaluator:
             # assert action.shape == (env.env_num, env.action_dim)
             if if_discrete:
                 action = action.argmax(dim=1, keepdim=True)
+            # print("evaluator step")
             state, reward, done, info_dict = env.step(action)
             self.analyzer.add_reward_info(env.get_reward_info())
             returns[t] = reward
             dones[t] = done
-
+        # print("get_cumulative_rewards_and_step_from_vec_env returns ")
         '''get cumulative returns and step'''
         if hasattr(env, 'cumulative_returns'):  # GPU
             returns_step_list = [(ret, env.max_step) for ret in env.cumulative_returns]

@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
   int nJoints = gvDim_ - 6;
   Eigen::VectorXd gc(robot->getGeneralizedCoordinateDim()), gv(robot->getDOF()), damping(robot->getDOF());
   gc.setZero(); gv.setZero();
-  gc.segment<7>(0) << -8, -8, 2.1, 1, 0, 0, 0;
+  gc.segment<7>(0) << -8, -8, 2.2, 1, 0, 0, 0;
   robot->setGeneralizedCoordinate(gc);
   robot->setGeneralizedVelocity(gv);
   damping.setConstant(0);
@@ -132,7 +132,8 @@ int main(int argc, char* argv[]) {
     vr = (v + w*d)/r;
     vl = (v - w*d)/r;
     theta = atan(l*w/v);
-    vtarget4 << 0,vl, 0,vr, vl, vr;
+    // vtarget4 << 0,vl, 0,vr, vl, vr;
+    vtarget4 << 0,0, 0,0, 1, 1;
     ptarget4 += vtarget4*world.getTimeStep();
     std::cout<<"theta"<<theta<<"vr"<<vr<<"vl"<<vl<<std::endl;
     ptarget4[0] = theta, ptarget4[2] = theta;
