@@ -32,11 +32,11 @@ class ENVIRONMENT : public RaisimGymEnv {
     mapheight = params_.map_param[0],mapwidth = params_.map_param[1];
     raisim::TerrainProperties terrainProperties;
     terrainProperties.frequency = 0.2;
-    terrainProperties.zScale = 3.0;
+    terrainProperties.zScale = 2.0;
     terrainProperties.xSize = mapheight;
     terrainProperties.ySize = mapwidth;
-    terrainProperties.xSamples = 50;
-    terrainProperties.ySamples = 50;
+    terrainProperties.xSamples = 100;
+    terrainProperties.ySamples = 100;
     terrainProperties.fractalOctaves = 3;
     terrainProperties.fractalLacunarity = 2.0;
     terrainProperties.fractalGain = 0.25;
@@ -100,8 +100,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     wheelIndices_.insert(nanocar_->getBodyIdx("/back_left_wheel_link"));
     wheelIndices_.insert(nanocar_->getBodyIdx("/back_right_wheel_link"));
 
+    server_ = nullptr;
     /// visualize if it is the first environment
     if (visualizable_) {
+      // std::cout<<"visualize"<<std::endl;
       server_ = std::make_unique<raisim::RaisimServer>(world_.get());
       goal_ = server_->addVisualCylinder("goal",0.1,2);
       goal_->setPosition({goalpos[0],goalpos[1],1});
@@ -124,31 +126,30 @@ class ENVIRONMENT : public RaisimGymEnv {
     nanocar_->setState(gc_init_, gv_init_);
     pTarget_.setZero(); vTarget_.setZero();vTarget4_.setZero(); pTarget4_.setZero();
     last_dist=init_dist;
-    // std::cout<<"gc_init"<<gc_init_[0]<<""<<gc_init_[1]<<std::endl;
     updateObservation();
-    // last_dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
-    // std::cout<<"observe"<<gc_[0]<<std::endl;
   }
 
   float step(const Eigen::Ref<EigenVec>& action) final {
+    // std::cout<<action[0]<<" "<<action[1]<<std::endl;
     // std::cout<<"step"<<std::endl;
     v=action[0],w=action[1];
     // v=0.5,w=0;
-    v=std::clamp(v,-1.5,1.5),w=std::clamp(w,-1.0,1.0);
+    v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-0.8,0.8);
     w=std::clamp(w,-abs(v),abs(v));
-    // std::cout<<"v"<<v<<"w"<<w<<std::endl;
+    
     vr = (v + w*d)/r;
     vl = (v - w*d)/r;
     theta = atan(l*w/(v+0.0001));
-    // std::cout<<"theta"<<theta<<"vr"<<vr<<"vl"<<vl<<std::endl;
-    // vTarget4_ << 0,0,0,0,1,1;
+    // if(visualizable_){
+    //   std::cout<<"v"<<v<<"w"<<w<<std::endl;
+    //   std::cout<<"theta"<<theta<<"vr"<<vr<<"vl"<<vl<<std::endl;
+    // }
     vTarget4_ <<0,vl, 0,vr, vl, vr;
     pTarget4_ += vTarget4_*(control_dt_);
     pTarget4_[0] = theta, pTarget4_[2] = theta;
     vTarget_.tail(nJoints_) = vTarget4_;
     pTarget_.tail(nJoints_) = pTarget4_;
     nanocar_->setPdTarget(pTarget_,vTarget_);
-    // nanocar_->setGeneralizedForce({0, 0, 0, 0, 0, 0, action[0], action[1], action[2], action[3]});
     // std::cout<<"begin integrate"<<std::endl;
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-5); i++){
       if(server_) server_->lockVisualizationServerMutex();
@@ -164,8 +165,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     // std::cout<<"observation"<<std::endl;
 
     // rewards_.record("torque", nanocar_->getGeneralizedForce().squaredNorm());
-    rewards_.record("forwardVel", std::min(4.0,bodyLinearVel_[0]));
-    rewards_.record("distance", last_dist-dist);
+    rewards_.record("forwardVel", std::min(1.5,bodyLinearVel_[0]));
+    rewards_.record("AngularVel", -abs(bodyAngularVel_[2])); 
+    rewards_.record("distance", -dist/init_dist);
+    rewards_.record("orientation", M_PI/3-abs(delta_theta));
     // if(visualizable_)
     // std::cout<<bodyLinearVel_[0]<<" "<<dist<<" "<<last_dist<<std::endl;
     if(dist<0.1){
@@ -175,20 +178,22 @@ class ENVIRONMENT : public RaisimGymEnv {
       rewards_.record("reach", 0);
     }
     last_dist=dist;
-    // rewards_.record("zmove", -bodyLinearVel_[2]);
-    //rewards_.record("roll", -abs(obDouble_[1]));
-    //rewards_.record("pitch", -abs(obDouble_[2]));
-    // std::cout<<"step c++ end"<<std::endl;
     return rewards_.sum();
   }
 
   void updateObservation() {
     nanocar_->getState(gc_, gv_);
-    // std::cout<<"observe"<<gc_[0]<<std::endl;
-    // Eigen::Quaterniond quaternion(gc_[3], gc_[4], gc_[5], gc_[6]);
-    // Euler = quaternion.toRotationMatrix().eulerAngles(2, 1, 0);
-    // std::cout<<Init_Euler<<std::endl<<std::endl;
+    // std::cout<<"observation"<<std::endl;
     dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
+    quat_db[0] = gc_[3]; quat_db[1] = gc_[4]; quat_db[2] = gc_[5]; quat_db[3] = gc_[6];
+    raisim::quatToEulerVec(quat_db, euler);
+    while(euler[2]>M_PI) euler[2]-=2*M_PI;
+    while(euler[2]<-M_PI) euler[2]+=2*M_PI;
+    goal_theta = atan2(goalpos[1]-gc_[1],goalpos[0]-gc_[0]);
+    delta_theta = goal_theta-euler[2];
+    if(delta_theta>M_PI) delta_theta-=2*M_PI;
+    if(delta_theta<-M_PI) delta_theta+=2*M_PI;
+    // if(visualizable_) std::cout<<euler[2]<<" "<<goal_theta<<" "<<delta_theta<<std::endl;
     raisim::Vec<4> quat;
     raisim::Mat<3,3> rot;
     quat[0] = gc_[3]; quat[1] = gc_[4]; quat[2] = gc_[5]; quat[3] = gc_[6];
@@ -196,12 +201,12 @@ class ENVIRONMENT : public RaisimGymEnv {
     bodyLinearVel_ = rot.e().transpose() * gv_.segment(0, 3);
     bodyAngularVel_ = rot.e().transpose() * gv_.segment(3, 3);
 
-    obDouble_ << gc_[0] - goalpos[0],gc_[1] - goalpos[1],//relative position to goal
-	      bodyLinearVel_[0],//linearvelocity
-        bodyAngularVel_[2],
-        rot.e().row(2).transpose(),
-        gv_.tail(4);
+    obDouble_ << dist,delta_theta,//relative position to goal
+	      bodyLinearVel_,//linearvelocity
+        bodyAngularVel_,//angularvelocity
+        euler[0],euler[1],euler[2];//orientation
         //lidar_.e_.GetHeightVec(); 
+    // std::cout<<"observation end"<<std::endl;
   }
 
   void observe(Eigen::Ref<EigenVec> ob) final {
@@ -239,9 +244,9 @@ class ENVIRONMENT : public RaisimGymEnv {
   bool visualizable_ = false;
   raisim::ArticulatedSystem* nanocar_;
   Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget4_, vTarget_,vTarget4_;
-  double terminalRewardCoeff_ = -10.;
+  double terminalRewardCoeff_ = -1000;
   Eigen::VectorXd actionMean_, actionStd_, obDouble_;
-  Eigen::Vector3d Euler, Init_Euler;
+  double quat_db[4],euler[3],goal_theta,delta_theta;
   Eigen::Vector3d bodyLinearVel_,bodyAngularVel_;
   std::set<size_t> wheelIndices_;
   Parameters params_;

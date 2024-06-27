@@ -36,11 +36,12 @@ if __name__ == '__main__':
     home_path = task_path + "/../../../../.."
     cfg = YAML().load(open(task_path + "/cfg.yaml", 'r'))
     max_step = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
+    control_dt = cfg['environment']['control_dt']
     env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
     env.seed(cfg['seed'])
     print("env created")
-    env.turn_off_visualization()
-    eval_interval = 10
+    # env.turn_off_visualization()
+    eval_interval = 1
     epoches = 100000
     
     env_args = {
@@ -55,8 +56,8 @@ if __name__ == '__main__':
     }
     print(env_args)
     args = Config(agent_class, env_class, env_args)  # see `config.py Arguments()` for hyperparameter explanation
-    args.net_dims = (64, 128, 64)  # the middle layer dimension of MultiLayer Perceptron
-    args.batch_size = 256  # vectorized env need a larger batch_size
+    args.net_dims = (256, 1024, 2048, 256)  # the middle layer dimension of MultiLayer Perceptron
+    args.batch_size = 1024  # vectorized env need a larger batch_size
     args.gamma = 0.97  # discount factor of future rewards
     args.horizon_len = args.max_step
 
@@ -102,7 +103,9 @@ if __name__ == '__main__':
         args=args,
     )
     print("exploring env")
+    # env.turn_on_visualization()
     buffer_items = agent.explore_env(env, args.horizon_len * args.eval_times, if_random=True)
+    # env.turn_off_visualization()
     print("updating buffer")
     buffer.update(buffer_items)  # warm up for ReplayBuffer
 
@@ -120,12 +123,12 @@ if __name__ == '__main__':
     if_off_policy = args.if_off_policy
     if_save_buffer = args.if_save_buffer
     del args
-    env.turn_on_visualization()
+    # env.turn_on_visualization()
     if_train = True
     for i in range(epoches):
         # print(i)
-        state = env.reset()
-        agent.last_state = state.to(agent.device).detach()
+        # state = env.reset()
+        # agent.last_state = state.to(agent.device).detach()
         buffer_items = agent.explore_env(env, horizon_len)
 
         exp_r = buffer_items[2].mean().item()
@@ -134,12 +137,12 @@ if __name__ == '__main__':
         torch.set_grad_enabled(True)
         logging_tuple = agent.update_net(buffer)
         torch.set_grad_enabled(False)
-        print(f"| epoch: {i:3d} | exp_r: {exp_r:7.2f} | critic_loss: {logging_tuple[0]:7.2f} | actor_loss: {logging_tuple[1]:7.2f} | alpha_loss: {logging_tuple[2]:7.2f} |")
+        # print(f"| epoch: {i:3d} | exp_r: {exp_r:7.2f} | critic_loss: {logging_tuple[0]:7.2f} | actor_loss: {logging_tuple[1]:7.2f} | alpha_loss: {logging_tuple[2]:7.2f} |")
         if(i%eval_interval==0):
         #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
         # eval_env.turn_on_visualization()
-            env.turn_on_visualization()
-            print("evaluating")
+            # env.turn_on_visualization()
+            # print("evaluating")
             evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
             # print("evaluated")
             # env.turn_off_visualization()

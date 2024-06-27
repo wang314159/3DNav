@@ -20,11 +20,11 @@ int main(int argc, char* argv[]) {
   /// create objects
   raisim::TerrainProperties terrainProperties;
   terrainProperties.frequency = 0.2;
-  terrainProperties.zScale = 3.0;
-  terrainProperties.xSize = 20.0;
-  terrainProperties.ySize = 20.0;
-  terrainProperties.xSamples = 50;
-  terrainProperties.ySamples = 50;
+  terrainProperties.zScale = 2.0;
+  terrainProperties.xSize = 30.0;
+  terrainProperties.ySize = 30.0;
+  terrainProperties.xSamples = 100;
+  terrainProperties.ySamples = 100;
   terrainProperties.fractalOctaves = 3;
   terrainProperties.fractalLacunarity = 2.0;
   terrainProperties.fractalGain = 0.25;
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
   int nJoints = gvDim_ - 6;
   Eigen::VectorXd gc(robot->getGeneralizedCoordinateDim()), gv(robot->getDOF()), damping(robot->getDOF());
   gc.setZero(); gv.setZero();
-  gc.segment<7>(0) << -8, -8, 2.2, 1, 0, 0, 0;
+  gc.segment<7>(0) << -8, -8, 1.15, 1, 0, 0, 0;
   robot->setGeneralizedCoordinate(gc);
   robot->setGeneralizedVelocity(gv);
   damping.setConstant(0);
@@ -64,11 +64,6 @@ int main(int argc, char* argv[]) {
   raisim::RaisimServer server(&world);
 
   /// this method should be called before server launch
-  // raisim::InstancedVisuals* scans = server.addInstancedVisuals("scan points",
-  //                                         raisim::Shape::Box,
-  //                                         {0.01, 0.01, 0.01},
-  //                                         {1,0,0,1},
-  //                                         {0,1,0,1});
   int scanSize1 = 50;
   int scanSize2 = 50;
   lidar lidar_;
@@ -94,48 +89,12 @@ int main(int argc, char* argv[]) {
     RS_TIMED_LOOP(int(world.getTimeStep()*1e6))
     server.integrateWorldThreadSafe();
     lidar_.scan(world, server,robot);
-    // raisim::Vec<3> lidarPos; raisim::Mat<3,3> lidarOri;
-    // robot->getFramePosition("imu_joint", lidarPos);
-    // robot->getFrameOrientation("imu_joint", lidarOri);
-
-    // for(int i=0; i<scanSize1; i++) {
-    //   for (int j = 0; j < scanSize2; j++) {
-    //     const double yaw = j * M_PI / scanSize2 * 2 -  M_PI;
-    //     double pitch = -(i * 0.4/scanSize1) + 0.25;
-    //     const double normInv = 1. / sqrt(pitch * pitch + 1);
-    //     direction = {cos(yaw) * normInv, sin(yaw) * normInv, -pitch * normInv};
-    //     Eigen::Vector3d rayDirection;
-    //     rayDirection = lidarOri.e() * direction;
-    //     auto &col = world.rayTest(lidarPos.e(), rayDirection, 30);
-    //     if (col.size() > 0) {
-          
-    //       // std::cout<<col[0].getPosition()<<std::endl;
-    //       auto relative_pos = col[0].getPosition() - lidarPos.e();
-    //       float length = relative_pos.norm();
-    //       if(length>1){
-    //         scans->setPosition(i * scanSize2 + j, col[0].getPosition());
-    //         if(time==100){
-    //           pcl::PointXYZ point ={relative_pos[0],relative_pos[1],relative_pos[2]+0.5};
-    //           cloud->push_back(point);
-    //         }
-    //         scans->setColorWeight(i * scanSize2 + j, std::min(length/15.f, 1.0f));
-    //       }
-    //       else
-    //       scans->setPosition(i*scanSize2+j, {0, 0, 100});
-    //     }
-    //     else
-    //       scans->setPosition(i*scanSize2+j, {0, 0, 100});
-    //   }
-    // }
-    // if(time==100){
-    //   pcl::io::savePLYFile("map.ply", *cloud);
-    // }
-    // robot->setGeneralizedVelocity({0, 0, 0, 0, 0, 0, 20, 20, -20, -20});
-    // robot->setGeneralizedVelocity({1, 0, 0, 0, 0, 0, 0, 0, 0, 0});
-    v=1,w=0.1;
+    v=0,w=-1;
+    v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-0.8,0.8);
+    w=std::clamp(w,-abs(v),abs(v));
     vr = (v + w*d)/r;
     vl = (v - w*d)/r;
-    theta = atan2(l*w,v);
+    theta = atan(l*w/(v+0.0001));
     vtarget4 << 0,vl, 0,vr, vl, vr;
     // vtarget4 << 0,0, 0,0, 1, 1;
     ptarget4 += vtarget4*world.getTimeStep();
@@ -157,8 +116,13 @@ int main(int argc, char* argv[]) {
     quat[0] = gc[3]; quat[1] = gc[4]; quat[2] = gc[5]; quat[3] = gc[6];
     raisim::quatToRotMat(quat, rot);
     raisim::quatToEulerVec(quat_db, euler);
+    while(euler[2]>M_PI) euler[2]-=2*M_PI;
+    while(euler[2]<-M_PI) euler[2]+=2*M_PI;
     theta_goal = atan2(goalpos[1]-gc[1],goalpos[0]-gc[0]);
-    std::cout<<euler[2]<<" "<<theta_goal<<" "<<theta_goal-euler[2]<<std::endl;
+    theta_delta = theta_goal-euler[2];
+    if(theta_delta>M_PI) theta_delta-=2*M_PI;
+    if(theta_delta<-M_PI) theta_delta+=2*M_PI;
+    std::cout<<euler[2]<<" "<<theta_goal<<" "<<theta_delta<<std::endl;
     // std::cout<<euler[0]<<" "<<euler[1]<<" "<<euler[2]<<std::endl;
     bodyLinearVel_ = rot.e().transpose() * gv.segment(0, 3);
     bodyAngularVel_ = rot.e().transpose() * gv.segment(3, 3);

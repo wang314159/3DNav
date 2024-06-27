@@ -53,10 +53,7 @@ class AgentBase:
         self.cri_optimizer.parameters = MethodType(get_optim_param, self.cri_optimizer)
         # print(self.num_envs)
         """attribute"""
-        if self.num_envs == 1:
-            self.explore_env = self.explore_one_env
-        else:
-            self.explore_env = self.explore_vec_env
+        self.explore_env = self.explore_vec_env
 
         self.if_use_per = getattr(args, 'if_use_per', None)  # use PER (Prioritized Experience Replay)
         if self.if_use_per:
@@ -109,7 +106,7 @@ class AgentBase:
         undones = 1.0 - dones.type(torch.float32)
         return states, actions, rewards, undones
 
-    def explore_vec_env(self, env, horizon_len: int, if_random: bool = False) -> Tuple[Tensor, ...]:
+    def explore_vec_env(self, env, horizon_len: int, if_random: bool = False,control_dt =0) -> Tuple[Tensor, ...]:
         """
         Collect trajectories through the actor-environment interaction for a **vectorized** environment instance.
 
@@ -130,16 +127,20 @@ class AgentBase:
         state = self.last_state  # last_state.shape == (num_envs, state_dim)
         get_action = self.act.get_action
         for t in range(horizon_len):
+            start = time.time()
             # print("t: ", t)
-            action = torch.rand(self.num_envs, self.action_dim) * 2 - 1.0 if if_random \
+            action = torch.rand(self.num_envs, self.action_dim) * 1.6 - 0.8 if if_random \
                 else get_action(state).detach()
             states[t] = state  # state.shape == (num_envs, state_dim)
-            # print("1")
-            # time.sleep(0.001)
             state, reward, done, _ = env.step(action)  # next_state
             actions[t] = action
             rewards[t] = reward
             dones[t] = done
+            end = time.time()
+            wait_time = control_dt - (end-start)
+            # print("wait_time: ", wait_time)
+            if wait_time > 0.:
+                time.sleep(wait_time)
 
         self.last_state = state
 

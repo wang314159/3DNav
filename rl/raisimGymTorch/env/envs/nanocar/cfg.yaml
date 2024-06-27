@@ -15,31 +15,35 @@ environment:
   gc_init: 
     x: -8
     y: -8
-    z: 1.7
+    z: 1.15
     qx: 1
     qy: 0.0
     qz: 0.0
     qw: 0.0
   goal:
-    x: -4
-    y: -4
+    x: -3
+    y: -3
   render: True
   num_envs: 5
   eval_every_n: 20
-  num_threads: 10
-  simulation_dt: 0.002
-  control_dt: 0.01
+  num_threads: 30
+  simulation_dt: 0.001
+  control_dt: 0.005
   max_time: 20.0
   action_std: 0.3
   reward:
     forwardVel:
-        coeff: 0.001
+        coeff: 0.01
+    AngularVel:
+        coeff: 0.1
     distance:
-        coeff: 500.0
-    zmove:
-        coeff: 1.0
-    torque:
-        coeff: -4e-5
+        coeff: 0.5
+    orientation:
+        coeff: 0.1
+    # zmove:
+    #     coeff: 1.0
+    # torque:
+    #     coeff: -4e-5
     reach:
         coeff: 100
       #    roll:
