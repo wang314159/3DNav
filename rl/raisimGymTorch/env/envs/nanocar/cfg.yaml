@@ -13,9 +13,9 @@ environment:
     size1: 50
     size2: 30
   gc_init: 
-    x: -8
-    y: -8
-    z: 1.15
+    x: -6
+    y: -9
+    z: 1.2
     qx: 1
     qy: 0.0
     qz: 0.0
@@ -35,7 +35,7 @@ environment:
     forwardVel:
         coeff: 0.01
     AngularVel:
-        coeff: 0.1
+        coeff: 0
     distance:
         coeff: 0.5
     orientation:

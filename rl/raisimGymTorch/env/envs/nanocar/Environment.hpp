@@ -145,7 +145,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     //   std::cout<<"theta"<<theta<<"vr"<<vr<<"vl"<<vl<<std::endl;
     // }
     vTarget4_ <<0,vl, 0,vr, vl, vr;
-    pTarget4_ += vTarget4_*(control_dt_);
+    pTarget4_ += vTarget4_*(control_dt_ + simulation_dt_);
     pTarget4_[0] = theta, pTarget4_[2] = theta;
     vTarget_.tail(nJoints_) = vTarget4_;
     pTarget_.tail(nJoints_) = pTarget4_;
@@ -173,7 +173,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     // std::cout<<bodyLinearVel_[0]<<" "<<dist<<" "<<last_dist<<std::endl;
     if(dist<0.1){
       std::cout<<"reach goal"<<std::endl;
-      rewards_.record("reach", 1);
+      rewards_.record("reach", init_dist*init_dist);
     }else{
       rewards_.record("reach", 0);
     }

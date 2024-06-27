@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
   int nJoints = gvDim_ - 6;
   Eigen::VectorXd gc(robot->getGeneralizedCoordinateDim()), gv(robot->getDOF()), damping(robot->getDOF());
   gc.setZero(); gv.setZero();
-  gc.segment<7>(0) << -8, -8, 1.15, 1, 0, 0, 0;
+  gc.segment<7>(0) << -6, -9, 1.2, 1, 0, 0, 0;
   robot->setGeneralizedCoordinate(gc);
   robot->setGeneralizedVelocity(gv);
   damping.setConstant(0);
