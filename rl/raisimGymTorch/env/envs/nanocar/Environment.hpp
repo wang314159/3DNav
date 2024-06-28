@@ -61,7 +61,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     /// initialize containers
     gc_.setZero(gcDim_); gc_init_.setZero(gcDim_);
     gv_.setZero(gvDim_); gv_init_.setZero(gvDim_);
-    pTarget_.setZero(gcDim_); vTarget_.setZero(gvDim_);vTarget4_.setZero(gvDim_); pTarget4_.setZero(nJoints_);
+    pTarget_.setZero(gcDim_); vTarget_.setZero(gvDim_);vTarget4_.setZero(nJoints_); pTarget4_.setZero(nJoints_);
 
     /// this is nominal configuration of nanocar
     // gc_init_ << -20, -20, 0.2, 1, 0, 0, 0;
@@ -135,7 +135,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     v=action[0],w=action[1];
     // v=0.5,w=0;
     v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-0.8,0.8);
-    w=std::clamp(w,-abs(v),abs(v));
+    w=std::clamp(w,-abs(v/3),abs(v/3));
     
     vr = (v + w*d)/r;
     vl = (v - w*d)/r;

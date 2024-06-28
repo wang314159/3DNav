@@ -41,7 +41,7 @@ if __name__ == '__main__':
     env.seed(cfg['seed'])
     print("env created")
     # env.turn_off_visualization()
-    eval_interval = 1
+    eval_interval = cfg['environment']['eval_every_n']
     epoches = 100000
     
     env_args = {
@@ -103,9 +103,8 @@ if __name__ == '__main__':
         args=args,
     )
     print("exploring env")
-    # env.turn_on_visualization()
     buffer_items = agent.explore_env(env, args.horizon_len * args.eval_times, if_random=True)
-    # env.turn_off_visualization()
+    # env.turn_on_visualization()
     print("updating buffer")
     buffer.update(buffer_items)  # warm up for ReplayBuffer
 
@@ -129,7 +128,7 @@ if __name__ == '__main__':
         # print(i)
         # state = env.reset()
         # agent.last_state = state.to(agent.device).detach()
-        buffer_items = agent.explore_env(env, horizon_len)
+        buffer_items = agent.explore_vec_env(env, horizon_len)
 
         exp_r = buffer_items[2].mean().item()
         buffer.update(buffer_items)
