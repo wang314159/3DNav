@@ -138,16 +138,12 @@ if __name__ == '__main__':
         torch.set_grad_enabled(False)
         # print(f"| epoch: {i:3d} | exp_r: {exp_r:7.2f} | critic_loss: {logging_tuple[0]:7.2f} | actor_loss: {logging_tuple[1]:7.2f} | alpha_loss: {logging_tuple[2]:7.2f} |")
         if(i%eval_interval==0):
-        #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
         # eval_env.turn_on_visualization()
             env.turn_on_visualization()
-            # print("evaluating")
             # env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(i)+'.mp4')
             evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
             # env.stop_video_recording()
-            # print("evaluated")
             env.turn_off_visualization()
-        # if_train = (evaluator.total_step <= break_step) and (not os.path.exists(f"{cwd}/stop"))
 
     print(f'| UsedTime: {time.time() - evaluator.start_time:>7.0f} | SavedDir: {cwd}')
 

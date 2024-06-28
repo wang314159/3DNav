@@ -26,16 +26,16 @@ environment:
   render: True
   num_envs: 50
   eval_every_n: 1
-  num_threads: 30
+  num_threads: 50
   simulation_dt: 0.01
   control_dt: 0.05
-  max_time: 50.0
+  max_time: 30.0
   action_std: 0.3
   reward:
     forwardVel:
         coeff: 0.1
     AngularVel:
-        coeff: 0
+        coeff: 0.05
     distance:
         coeff: 0.5
     orientation:
