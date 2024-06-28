@@ -18,7 +18,6 @@ import sys
 from argparse import ArgumentParser
 from raisimGymTorch.algo.elegantrl import Config
 from raisimGymTorch.algo.elegantrl import AgentSAC, AgentModSAC
-from raisimGymTorch.algo.elegantrl import Config
 from raisimGymTorch.algo.elegantrl import ReplayBuffer
 from raisimGymTorch.algo.elegantrl import Evaluator
 import wandb
@@ -26,17 +25,20 @@ import wandb
 
 
 if __name__ == '__main__':
+
+    task_path = os.path.dirname(os.path.realpath(__file__))
+    home_path = task_path + "/../../../../.."
+    cfg = YAML().load(open(task_path + "/cfg.yaml", 'r'))
+
     agent_class = AgentSAC# DRL algorithm name
     env_class = VecEnv  # run a custom env: PendulumEnv, which based on OpenAI pendulum
     use_wandb = True
     if use_wandb:
         wandb.init(project="nanocar_navigation")
-    # get_gym_env_args(env=PendulumEnv(), if_print=True)  # return env_args
-    task_path = os.path.dirname(os.path.realpath(__file__))
-    home_path = task_path + "/../../../../.."
-    cfg = YAML().load(open(task_path + "/cfg.yaml", 'r'))
+    
     max_step = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
     control_dt = cfg['environment']['control_dt']
+    eval_env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
     env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
     env.seed(cfg['seed'])
     print("env created")
@@ -66,7 +68,6 @@ if __name__ == '__main__':
     args.state_value_tau = 0.2  # the tau of normalize for value and state `std = (1-std)*std + tau*std`
 
     args.eval_per_step = int(4e3)
-    args.break_step = int(1e5*args.max_step)  # break training if 'total_step > break_step'
 
     args.gpu_id = 0
     args.num_workers = 1
@@ -78,12 +79,10 @@ if __name__ == '__main__':
     # env = build_env(args.env_class, args.env_args, args.gpu_id)
 
     '''init agent'''
-    print("creating agent")
     agent = AgentSAC(args.net_dims, args.state_dim, args.action_dim, gpu_id=args.gpu_id, args=args)
     agent.save_or_load_agent(args.cwd, if_save=False)
 
     '''init agent.last_state'''
-    print("creating state")
     state = env.reset()
 
     assert state.shape == (args.num_envs, args.state_dim)
@@ -91,8 +90,10 @@ if __name__ == '__main__':
     state = state.to(agent.device)
     agent.last_state = state.detach()
 
+    '''init evaluator'''
+    evaluator = Evaluator(cwd=args.cwd, env=eval_env, args=args, if_wandb=use_wandb)
+
     '''init buffer'''
-    print("creating buffer")
     buffer = ReplayBuffer(
         gpu_id=args.gpu_id,
         num_seqs=args.num_envs,
@@ -102,28 +103,15 @@ if __name__ == '__main__':
         if_use_per=args.if_use_per,
         args=args,
     )
-    print("exploring env")
     buffer_items = agent.explore_vec_env(env, args.horizon_len * args.eval_times, if_random=True)
-    # env.turn_on_visualization()
-    print("updating buffer")
     buffer.update(buffer_items)  # warm up for ReplayBuffer
-
-    '''init evaluator'''
-    eval_env_class = args.env_class
-    eval_env_args = args.env_args
-    # eval_env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
-    print("creating evaluator")
-    evaluator = Evaluator(cwd=args.cwd, env=env, args=args, if_wandb=use_wandb)
 
     '''train loop'''
     cwd = args.cwd
-    break_step = args.break_step
     horizon_len = args.horizon_len
-    if_off_policy = args.if_off_policy
     if_save_buffer = args.if_save_buffer
     del args
-    # env.turn_on_visualization()
-    if_train = True
+
     for i in range(epoches):
         # print(i)
         # state = env.reset()
@@ -138,12 +126,7 @@ if __name__ == '__main__':
         torch.set_grad_enabled(False)
         # print(f"| epoch: {i:3d} | exp_r: {exp_r:7.2f} | critic_loss: {logging_tuple[0]:7.2f} | actor_loss: {logging_tuple[1]:7.2f} | alpha_loss: {logging_tuple[2]:7.2f} |")
         if(i%eval_interval==0):
-        # eval_env.turn_on_visualization()
-            env.turn_on_visualization()
-            # env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(i)+'.mp4')
             evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
-            # env.stop_video_recording()
-            env.turn_off_visualization()
 
     print(f'| UsedTime: {time.time() - evaluator.start_time:>7.0f} | SavedDir: {cwd}')
 

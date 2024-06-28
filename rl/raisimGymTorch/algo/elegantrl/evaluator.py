@@ -49,13 +49,15 @@ class Evaluator:
         self.wandb_log=if_wandb
 
     def evaluate_and_save(self, actor: torch.nn, steps: int,epoch: int, exp_r: float, logging_tuple: tuple):
+        
         self.total_step += steps  # update total training steps
         # if self.total_step < self.eval_step_counter + self.eval_per_step:
         #     return
 
         # self.eval_step_counter = self.total_step
-
-        rewards_step_ten = self.get_cumulative_rewards_and_step(actor)
+        self.env.turn_on_visualization()
+        rewards_step_ten = self.get_cumulative_rewards_and_step_vectorized_env(actor)
+        self.env.turn_off_visualization()
         # print(rewards_step_ten.cpu().numpy())
         returns = rewards_step_ten[:, 0]  # episodic cumulative returns of an
         steps = rewards_step_ten[:, 1]  # episodic step number
@@ -213,7 +215,6 @@ class Evaluator:
         device = env.device
         env_num = env.num_envs
         max_step = env.max_step
-        if_discrete = env.if_discrete
 
         '''get returns and dones (GPU)'''
         returns = torch.empty((max_step, env_num), dtype=torch.float32, device=device)
@@ -223,8 +224,6 @@ class Evaluator:
         for t in range(max_step):
             action = actor(state.to(device))
             # assert action.shape == (env.env_num, env.action_dim)
-            if if_discrete:
-                action = action.argmax(dim=1, keepdim=True)
             # print("evaluator step")
             state, reward, done, info_dict = env.step(action)
             self.analyzer.add_reward_info(env.get_reward_info())

@@ -137,7 +137,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     // std::cout<<"step"<<std::endl;
     v=action[0],w=action[1];
     // v=0.5,w=0;
-    v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-0.5,0.5);
+    v=std::clamp(v,-1.5,1.5),w=std::clamp(w,-1.0,1.0);
     w=std::clamp(w,-abs(v/3),abs(v/3));
     
     vr = (v + w*d)/r;
@@ -232,7 +232,6 @@ class ENVIRONMENT : public RaisimGymEnv {
       return true;
     }
     if(dist<0.1){
-      // std::cout<<"reach goal"<<std::endl;
       terminalReward = 100;
       return true;
     }

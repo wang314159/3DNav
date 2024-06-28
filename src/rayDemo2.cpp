@@ -55,9 +55,9 @@ int main(int argc, char* argv[]) {
   ptarget.setZero(), ptarget4.setZero();
   vtarget.setZero();
   Eigen::VectorXd jointPgain(gvDim_), jointDgain(gvDim_);
-  jointPgain.setZero(); jointPgain.tail(nJoints).setConstant(50.0);
+  jointPgain.setZero(); jointPgain.tail(nJoints).setConstant(30.0);
   jointPgain[1] = 0, jointPgain[3] = 0;
-  jointDgain.setZero(); jointDgain.tail(nJoints).setConstant(0.2);
+  jointDgain.setZero(); jointDgain.tail(nJoints).setConstant(0.5);
   jointDgain[1] = 0.001, jointDgain[3] = 0.001;
   robot->setPdGains(jointPgain, jointDgain);
   robot->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
@@ -86,7 +86,6 @@ int main(int argc, char* argv[]) {
 
 
   for(int time=0; time<1000000; time++) {
-    // std::cout<<"time: "<<time<<std::endl;
     RS_TIMED_LOOP(int(world.getTimeStep()*1e6))
     server.integrateWorldThreadSafe();
     lidar_.scan(world, server,robot);
