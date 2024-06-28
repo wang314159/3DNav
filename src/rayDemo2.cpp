@@ -35,11 +35,12 @@ int main(int argc, char* argv[]) {
   // auto robot = world.addArticulatedSystem(binaryPath.getDirectory() + "../data/husky/husky.urdf");
   auto robot = world.addArticulatedSystem(binaryPath.getDirectory() + "../data/nanocarpro/urdf/nanocarpro.urdf");
 
-  robot->setName("husky");
+  robot->setName("nanocar");
   hm->setAppearance("soil2");
   int gvDim_ = robot->getDOF();
   int gcDim_ = robot->getGeneralizedCoordinateDim();
   int nJoints = gvDim_ - 6;
+  // std::cout<<"nJoints: "<<nJoints<<std::endl;
   Eigen::VectorXd gc(robot->getGeneralizedCoordinateDim()), gv(robot->getDOF()), damping(robot->getDOF());
   gc.setZero(); gv.setZero();
   gc.segment<7>(0) << -6, -9, 1.2, 1, 0, 0, 0;
@@ -47,7 +48,7 @@ int main(int argc, char* argv[]) {
   robot->setGeneralizedVelocity(gv);
   damping.setConstant(0);
   damping.tail(nJoints).setConstant(1.);
-  robot->setJointDamping(damping);
+  // robot->setJointDamping(damping);
   world.setGravity({0, 0, -9.81});
   robot->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
   Eigen::VectorXd vtarget(robot->getDOF()),vtarget4(nJoints),ptarget(gcDim_),ptarget4(nJoints);
@@ -89,7 +90,7 @@ int main(int argc, char* argv[]) {
     RS_TIMED_LOOP(int(world.getTimeStep()*1e6))
     server.integrateWorldThreadSafe();
     lidar_.scan(world, server,robot);
-    v=0,w=-1;
+    v=1,w=0.1;
     v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-0.8,0.8);
     w=std::clamp(w,-abs(v),abs(v));
     vr = (v + w*d)/r;

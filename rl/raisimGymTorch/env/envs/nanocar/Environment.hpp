@@ -42,17 +42,17 @@ class ENVIRONMENT : public RaisimGymEnv {
     terrainProperties.fractalGain = 0.25;
 
   // auto hm = world.addHeightMap("../data/height3.png", 0, 0, 3, 3, 0.000001, 0);
-    // hm_ = world_->addHeightMap(0, 0, terrainProperties);
+    hm_ = world_->addHeightMap(0, 0, terrainProperties);
     // hm_ = world_->addHeightMap(resourceDir_ + params_.map_path, 0, 0, mapheight, 
     // mapwidth, params_.map_param[2], params_.map_param[3]);
-    // hm_->setAppearance("soil2");
+    hm_->setAppearance("soil2");
 
     /// add objects
     nanocar_ = world_->addArticulatedSystem(resourceDir_+ params_.robot_urdf);
     nanocar_->setName("nanocar");
     nanocar_->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
     world_->addGround();
-    //lidar_.init(params_.scanSize[0], params_.scanSize[1], visualizable_);
+    lidar_.init(params_.scanSize[0], params_.scanSize[1], visualizable_);
     /// get robot data
     gcDim_ = nanocar_->getGeneralizedCoordinateDim();
     gvDim_ = nanocar_->getDOF();
@@ -62,10 +62,13 @@ class ENVIRONMENT : public RaisimGymEnv {
     gc_.setZero(gcDim_); gc_init_.setZero(gcDim_);
     gv_.setZero(gvDim_); gv_init_.setZero(gvDim_);
     pTarget_.setZero(gcDim_); vTarget_.setZero(gvDim_);vTarget4_.setZero(nJoints_); pTarget4_.setZero(nJoints_);
-
+    damping.setZero(gvDim_);
+    damping.tail(nJoints_).setConstant(1.);
+    nanocar_->setJointDamping(damping);
     /// this is nominal configuration of nanocar
     // gc_init_ << -20, -20, 0.2, 1, 0, 0, 0;
-    gc_init_ = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params_.gc_init, 7);
+    for (int i = 0; i < 7; i++) gc_init_[i]  = params_.gc_init[i];
+    // gc_init_ = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params_.gc_init, 7);
     // std::cout<<"gc_init"<<gc_init_[0]<<"gc_"<<gc_[0]<<std::endl;
     nanocar_->setGeneralizedCoordinate(gc_init_);
     nanocar_->setGeneralizedVelocity(gv_init_);
@@ -74,7 +77,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     last_dist=dist=init_dist;
     /// set pd gains
     Eigen::VectorXd jointPgain(gvDim_), jointDgain(gvDim_);
-    jointPgain.setZero(); jointPgain.tail(nJoints_).setConstant(50.0);
+    jointPgain.setZero(); jointPgain.tail(nJoints_).setConstant(30.0);
     jointDgain.setZero(); jointDgain.tail(nJoints_).setConstant(0.2);
     nanocar_->setPdGains(jointPgain, jointDgain);
     nanocar_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
@@ -131,10 +134,10 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   float step(const Eigen::Ref<EigenVec>& action) final {
     // std::cout<<action[0]<<" "<<action[1]<<std::endl;
-    std::cout<<"step"<<std::endl;
+    // std::cout<<"step"<<std::endl;
     v=action[0],w=action[1];
     // v=0.5,w=0;
-    v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-0.8,0.8);
+    v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-0.5,0.5);
     w=std::clamp(w,-abs(v/3),abs(v/3));
     
     vr = (v + w*d)/r;
@@ -156,7 +159,7 @@ class ENVIRONMENT : public RaisimGymEnv {
       if(server_) server_->lockVisualizationServerMutex();
       // std::cout<<"integrate"<<std::endl;
       world_->integrate();
-      // lidar_.scan(world_, server_, nanocar_);
+      lidar_.scan(world_, server_, nanocar_);
       if(server_) server_->unlockVisualizationServerMutex();
     }
     
@@ -168,8 +171,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     // rewards_.record("torque", nanocar_->getGeneralizedForce().squaredNorm());
     rewards_.record("forwardVel", std::min(1.5,bodyLinearVel_[0]));
     // rewards_.record("AngularVel", -abs(bodyAngularVel_[2])); 
-    // rewards_.record("distance", -dist/init_dist);
-    // rewards_.record("orientation", M_PI/3-abs(delta_theta));
+    rewards_.record("distance", -dist/init_dist);
+    rewards_.record("orientation", M_PI/3-abs(delta_theta));
     // if(visualizable_)
     // std::cout<<bodyLinearVel_[0]<<" "<<dist<<" "<<last_dist<<std::endl;
     if(dist<0.1){
@@ -184,7 +187,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   void updateObservation() {
     nanocar_->getState(gc_, gv_);
-    std::cout<<"observation"<<std::endl;
+    // std::cout<<"observation"<<std::endl;
     dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
     quat_db[0] = gc_[3]; quat_db[1] = gc_[4]; quat_db[2] = gc_[5]; quat_db[3] = gc_[6];
     raisim::quatToEulerVec(quat_db, euler);
@@ -244,7 +247,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   int gcDim_, gvDim_, nJoints_;
   bool visualizable_ = false;
   raisim::ArticulatedSystem* nanocar_;
-  Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget4_, vTarget_,vTarget4_;
+  Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget4_, vTarget_,vTarget4_,damping;
   double terminalRewardCoeff_ = -1000;
   Eigen::VectorXd actionMean_, actionStd_, obDouble_;
   double quat_db[4],euler[3],goal_theta,delta_theta;
@@ -257,7 +260,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   double vr,vl,r=0.0335,d=0.08725,v,w,R,l=0.14353,theta,dist,last_dist=dist,init_dist=dist;
   // raisim::InstancedVisuals* scans_;
   raisim::Visuals* goal_;
-  // lidar lidar_;
+  lidar lidar_;
   
 
   /// these variables are not in use. They are placed to show you how to create a random number sampler.

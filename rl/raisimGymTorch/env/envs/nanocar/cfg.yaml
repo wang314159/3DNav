@@ -4,8 +4,8 @@ record_video: yes
 environment:
   map:
     path: "/height3_copy.png"
-    width: 30
-    height: 30
+    width: 20
+    height: 20
     ratio: 0.00001
     z_offset: 0
   robot_urdf: "/nanocarpro/urdf/nanocarpro.urdf"
@@ -15,25 +15,25 @@ environment:
   gc_init: 
     x: 0
     y: 0
-    z: 0.1
+    z: 1.0
     qx: 1
     qy: 0.0
     qz: 0.0
     qw: 0.0
   goal:
-    x: -3
-    y: -4
+    x: 4
+    y: 4
   render: True
   num_envs: 50
-  eval_every_n: 5
+  eval_every_n: 1
   num_threads: 30
-  simulation_dt: 0.0025
-  control_dt: 0.01
-  max_time: 30.0
+  simulation_dt: 0.01
+  control_dt: 0.05
+  max_time: 50.0
   action_std: 0.3
   reward:
     forwardVel:
-        coeff: 0.01
+        coeff: 0.1
     AngularVel:
         coeff: 0
     distance:

@@ -104,7 +104,7 @@ for update in range(1000000):
         loaded_graph.load_state_dict(torch.load(saver.data_dir+"/full_"+str(update)+'.pt')['actor_architecture_state_dict'])
 
         env.turn_on_visualization()
-        env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(update)+'.mp4')
+        # env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(update)+'.mp4')
 
         for step in range(n_steps):
             with torch.no_grad():
@@ -116,10 +116,12 @@ for update in range(1000000):
                 reward_analyzer.add_reward_info(env.get_reward_info())
                 frame_end = time.time()
                 wait_time = cfg['environment']['control_dt'] - (frame_end-frame_start)
+                # print("waiting for ", wait_time, " seconds")
                 if wait_time > 0.:
+                    
                     time.sleep(wait_time)
 
-        env.stop_video_recording()
+        # env.stop_video_recording()
         env.turn_off_visualization()
 
         reward_analyzer.analyze_and_plot(update)

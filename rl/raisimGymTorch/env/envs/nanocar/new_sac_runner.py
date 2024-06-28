@@ -40,7 +40,7 @@ if __name__ == '__main__':
     env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
     env.seed(cfg['seed'])
     print("env created")
-    # env.turn_off_visualization()
+    env.turn_off_visualization()
     eval_interval = cfg['environment']['eval_every_n']
     epoches = 100000
     
@@ -103,7 +103,7 @@ if __name__ == '__main__':
         args=args,
     )
     print("exploring env")
-    buffer_items = agent.explore_env(env, args.horizon_len * args.eval_times, if_random=True)
+    buffer_items = agent.explore_vec_env(env, args.horizon_len * args.eval_times, if_random=True)
     # env.turn_on_visualization()
     print("updating buffer")
     buffer.update(buffer_items)  # warm up for ReplayBuffer
@@ -140,13 +140,13 @@ if __name__ == '__main__':
         if(i%eval_interval==0):
         #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
         # eval_env.turn_on_visualization()
-            # env.turn_on_visualization()
+            env.turn_on_visualization()
             # print("evaluating")
             # env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(i)+'.mp4')
             evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
             # env.stop_video_recording()
             # print("evaluated")
-            # env.turn_off_visualization()
+            env.turn_off_visualization()
         # if_train = (evaluator.total_step <= break_step) and (not os.path.exists(f"{cwd}/stop"))
 
     print(f'| UsedTime: {time.time() - evaluator.start_time:>7.0f} | SavedDir: {cwd}')
