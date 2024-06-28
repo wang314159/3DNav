@@ -113,8 +113,8 @@ if __name__ == '__main__':
 
     for i in range(epoches):
         # print(i)
-        # state = env.reset()
-        # agent.last_state = state.to(agent.device).detach()
+        state = env.reset()
+        agent.last_state = state.to(agent.device).detach()
         buffer_items = agent.explore_vec_env(env, horizon_len)
 
         exp_r = buffer_items[2].mean().item()
