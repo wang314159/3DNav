@@ -13,9 +13,9 @@ environment:
     size1: 50
     size2: 30
   gc_init: 
-    x: -6
-    y: -9
-    z: 1.2
+    x: 0
+    y: 0
+    z: 0.1
     qx: 1
     qy: 0.0
     qz: 0.0
@@ -24,11 +24,11 @@ environment:
     x: -3
     y: -4
   render: True
-  num_envs: 10
+  num_envs: 50
   eval_every_n: 5
   num_threads: 30
-  simulation_dt: 0.001
-  control_dt: 0.005
+  simulation_dt: 0.0025
+  control_dt: 0.01
   max_time: 30.0
   action_std: 0.3
   reward:

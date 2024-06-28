@@ -42,10 +42,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     terrainProperties.fractalGain = 0.25;
 
   // auto hm = world.addHeightMap("../data/height3.png", 0, 0, 3, 3, 0.000001, 0);
-    hm_ = world_->addHeightMap(0, 0, terrainProperties);
+    // hm_ = world_->addHeightMap(0, 0, terrainProperties);
     // hm_ = world_->addHeightMap(resourceDir_ + params_.map_path, 0, 0, mapheight, 
     // mapwidth, params_.map_param[2], params_.map_param[3]);
-    hm_->setAppearance("soil2");
+    // hm_->setAppearance("soil2");
 
     /// add objects
     nanocar_ = world_->addArticulatedSystem(resourceDir_+ params_.robot_urdf);
@@ -131,7 +131,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   float step(const Eigen::Ref<EigenVec>& action) final {
     // std::cout<<action[0]<<" "<<action[1]<<std::endl;
-    // std::cout<<"step"<<std::endl;
+    std::cout<<"step"<<std::endl;
     v=action[0],w=action[1];
     // v=0.5,w=0;
     v=std::clamp(v,-1.0,1.0),w=std::clamp(w,-0.8,0.8);
@@ -145,13 +145,14 @@ class ENVIRONMENT : public RaisimGymEnv {
     //   std::cout<<"theta"<<theta<<"vr"<<vr<<"vl"<<vl<<std::endl;
     // }
     vTarget4_ <<0,vl, 0,vr, vl, vr;
+    pTarget4_ = gc_.tail(nJoints_);
     pTarget4_ += vTarget4_*(control_dt_ + simulation_dt_);
     pTarget4_[0] = theta, pTarget4_[2] = theta;
     vTarget_.tail(nJoints_) = vTarget4_;
     pTarget_.tail(nJoints_) = pTarget4_;
     nanocar_->setPdTarget(pTarget_,vTarget_);
     // std::cout<<"begin integrate"<<std::endl;
-    for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-5); i++){
+    for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
       if(server_) server_->lockVisualizationServerMutex();
       // std::cout<<"integrate"<<std::endl;
       world_->integrate();
@@ -166,9 +167,9 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     // rewards_.record("torque", nanocar_->getGeneralizedForce().squaredNorm());
     rewards_.record("forwardVel", std::min(1.5,bodyLinearVel_[0]));
-    rewards_.record("AngularVel", -abs(bodyAngularVel_[2])); 
-    rewards_.record("distance", -dist/init_dist);
-    rewards_.record("orientation", M_PI/3-abs(delta_theta));
+    // rewards_.record("AngularVel", -abs(bodyAngularVel_[2])); 
+    // rewards_.record("distance", -dist/init_dist);
+    // rewards_.record("orientation", M_PI/3-abs(delta_theta));
     // if(visualizable_)
     // std::cout<<bodyLinearVel_[0]<<" "<<dist<<" "<<last_dist<<std::endl;
     if(dist<0.1){
@@ -183,7 +184,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   void updateObservation() {
     nanocar_->getState(gc_, gv_);
-    // std::cout<<"observation"<<std::endl;
+    std::cout<<"observation"<<std::endl;
     dist=sqrt((gc_[0]-goalpos[0])*(gc_[0]-goalpos[0])+(gc_[1]-goalpos[1])*(gc_[1]-goalpos[1]));
     quat_db[0] = gc_[3]; quat_db[1] = gc_[4]; quat_db[2] = gc_[5]; quat_db[3] = gc_[6];
     raisim::quatToEulerVec(quat_db, euler);
