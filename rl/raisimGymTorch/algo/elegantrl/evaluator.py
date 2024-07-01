@@ -8,6 +8,7 @@ from typing import Tuple, List
 from .config import Config
 from .RewardAnalyzer import EleRLRewardAnalyzer
 import wandb
+import datetime
 
 class Evaluator:
     def __init__(self, cwd: str, env, args: Config, if_wandb: bool = False):
@@ -56,7 +57,9 @@ class Evaluator:
 
         # self.eval_step_counter = self.total_step
         self.env.turn_on_visualization()
+        self.env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(epoch)+'.mp4')
         rewards_step_ten = self.get_cumulative_rewards_and_step_vectorized_env(actor)
+        self.env.stop_video_recording()
         self.env.turn_off_visualization()
         # print(rewards_step_ten.cpu().numpy())
         returns = rewards_step_ten[:, 0]  # episodic cumulative returns of an

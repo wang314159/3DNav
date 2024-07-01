@@ -127,7 +127,6 @@ class AgentBase:
         state = self.last_state  # last_state.shape == (num_envs, state_dim)
         get_action = self.act.get_action
         for t in range(horizon_len):
-            start = time.time()
             # print("t: ", t)
             action = torch.rand(self.num_envs, self.action_dim) * 1.6 - 0.8 if if_random \
                 else get_action(state).detach()
@@ -136,12 +135,6 @@ class AgentBase:
             actions[t] = action
             rewards[t] = reward
             dones[t] = done
-            end = time.time()
-            wait_time = control_dt - (end-start)
-            # print("wait_time: ", wait_time)
-            if wait_time > 0.:
-                time.sleep(wait_time)
-
         self.last_state = state
 
         rewards *= self.reward_scale
