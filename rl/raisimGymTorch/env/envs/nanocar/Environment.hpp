@@ -175,7 +175,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     rewards_.record("orientation", M_PI/3-abs(delta_theta));
     // if(visualizable_)
     // std::cout<<bodyLinearVel_[0]<<" "<<dist<<" "<<last_dist<<std::endl;
-    if(dist<0.1){
+    if(dist<0.2){
       std::cout<<"reach goal"<<std::endl;
       rewards_.record("reach", init_dist*init_dist);
     }else{
@@ -231,7 +231,7 @@ class ENVIRONMENT : public RaisimGymEnv {
       // std::cout<<"break"<<std::endl;
       return true;
     }
-    if(dist<0.1){
+    if(dist<0.2){
       terminalReward = 100;
       return true;
     }
