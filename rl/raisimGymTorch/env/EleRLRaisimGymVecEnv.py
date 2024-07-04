@@ -20,10 +20,6 @@ class RaisimGymVecEnv():
         self.wrapper = impl
         self.state_dim = self.wrapper.getObDim()
         self.action_dim = self.wrapper.getActionDim()
-        # self.observation_space = spaces.Box(-1e6,1e6,[self.num_envs,self.num_obs],dtype=np.float32)
-        # self.action_space = spaces.Box(-50,50,[self.num_envs,self.num_obs],dtype=np.float32)
-        # self.observation_space = spaces.Box(-1e6,1e6,[self.num_obs],dtype=np.float32)
-        # self.action_space = spaces.Box(-50,50,[self.num_acts],dtype=np.float32)
 
         self._observations = np.zeros([self.num_envs,self.state_dim], dtype=np.float32)
         self.device = torch.device(f"cuda:{0}" if (torch.cuda.is_available() ) else "cpu")

@@ -132,12 +132,7 @@ if __name__ == '__main__':
         logging_tuple = agent.update_net(buffer)
         torch.set_grad_enabled(False)
         if(i%eval_interval==0):
-        #     evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len, exp_r=exp_r, logging_tuple=logging_tuple)
-        # eval_env.turn_on_visualization()
-           #  env.turn_on_visualization()
             evaluator.evaluate_and_save(actor=agent.act, steps=horizon_len,epoch=i, exp_r=exp_r, logging_tuple=logging_tuple)
-           #  env.turn_off_visualization()
-        # if_train = (evaluator.total_step <= break_step) and (not os.path.exists(f"{cwd}/stop"))
 
     print(f'| UsedTime: {time.time() - evaluator.start_time:>7.0f} | SavedDir: {cwd}')
 

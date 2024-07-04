@@ -7,7 +7,7 @@ import numpy as np
 
 class EleRLRewardAnalyzer:
 
-    def __init__(self, env):
+    def __init__(self, env,label=""):
         reward_info = env.get_reward_info()
         self.data_tags = list(reward_info[0].keys())
         self.data_size = 0
@@ -16,6 +16,7 @@ class EleRLRewardAnalyzer:
         self.data_min = np.inf * np.ones(shape=(len(self.data_tags), 1), dtype=np.double)
         self.data_max = -np.inf * np.ones(shape=(len(self.data_tags), 1), dtype=np.double)
         self.reward_dict = {}
+        self.label = label
 
     def add_reward_info(self, info):
         self.data_size += len(info)
