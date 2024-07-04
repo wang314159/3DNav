@@ -23,10 +23,20 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   explicit ENVIRONMENT(const std::string& resourceDir, const Yaml::Node& cfg, bool visualizable) :
       RaisimGymEnv(resourceDir, cfg), visualizable_(visualizable), normDist_(0, 1){
+    
     // std::cout<<"init env"<<std::endl;
     params_.update(cfg);
-    goalpos[0]=params_.goalpos[0];
-    goalpos[1]=params_.goalpos[1];
+
+    std::uniform_real_distribution<double> unif_(0,params_.goalthresh[0]*2);
+    for(int i=0;i<2;i++){
+      double temp=0;
+      while(abs(temp)<params_.goalthresh[1])
+        temp = unif_(gen_) - params_.goalthresh[0];
+      goalpos[i]=temp;
+    }
+    // std::cout<<"goalpos"<<goalpos[0]<<" "<<goalpos[1]<<std::endl;
+    // goalpos[0]=params_.goalpos[0];
+    // goalpos[1]=params_.goalpos[1];
     /// create world
     world_ = std::make_unique<raisim::World>();
     mapheight = params_.map_param[0],mapwidth = params_.map_param[1];
@@ -169,7 +179,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     // std::cout<<"observation"<<std::endl;
 
     // rewards_.record("torque", nanocar_->getGeneralizedForce().squaredNorm());
-    rewards_.record("forwardVel", std::min(1.5,bodyLinearVel_[0]));
+    // rewards_.record("forwardVel", std::min(1.5,bodyLinearVel_[0]));
     // rewards_.record("AngularVel", -abs(bodyAngularVel_[2])); 
     rewards_.record("distance", -dist/init_dist);
     rewards_.record("orientation", M_PI/3-abs(delta_theta));
@@ -206,8 +216,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     bodyAngularVel_ = rot.e().transpose() * gv_.segment(3, 3);
 
     obDouble_ << dist,delta_theta,//relative position to goal
-	      bodyLinearVel_,//linearvelocity
-        bodyAngularVel_,//angularvelocity
+	      bodyLinearVel_[0],//linearvelocity
+        bodyAngularVel_[2],//angularvelocity
         euler[0],euler[1],euler[2];//orientation
         //lidar_.e_.GetHeightVec(); 
     // std::cout<<"observation end"<<std::endl;
@@ -227,8 +237,6 @@ class ENVIRONMENT : public RaisimGymEnv {
         return true;
     // std::cout<<gc_[0]<<" "<<std::endl;
     if(abs(gc_[0])>(mapheight/2) || abs(gc_[1])>(mapwidth/2)){
-      // std::cout<<" "<<gc_[0]<<" "<<gc_[1]<<std::endl;
-      // std::cout<<"break"<<std::endl;
       return true;
     }
     if(dist<0.2){

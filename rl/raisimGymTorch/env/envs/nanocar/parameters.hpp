@@ -11,7 +11,7 @@ public:
     std::string robot_urdf;
     double map_param[4];
     double gc_init[7];
-    double goalpos[2];
+    double goalpos[2],goalthresh[2];
     int scanSize[2];
     void update(const Yaml::Node& cfg){
         READ_YAML(std::string, map_path, cfg["map"]["path"]);
@@ -30,8 +30,10 @@ public:
         READ_YAML(double, gc_init[5], cfg["gc_init"]["qz"]);
         READ_YAML(double, gc_init[6], cfg["gc_init"]["qw"]);
         
-        READ_YAML(double, goalpos[0], cfg["goal"]["x"]);
-        READ_YAML(double, goalpos[1], cfg["goal"]["y"]);
+        // READ_YAML(double, goalpos[0], cfg["goal"]["x"]);
+        // READ_YAML(double, goalpos[1], cfg["goal"]["y"]);
+        READ_YAML(double, goalthresh[0], cfg["goal"]["max"]);
+        READ_YAML(double, goalthresh[1], cfg["goal"]["min"]);
 
         READ_YAML(int, scanSize[0], cfg["scan"]["size1"]);
         READ_YAML(int, scanSize[1], cfg["scan"]["size2"]);
