@@ -48,8 +48,9 @@ iteration_number = weight_path.rsplit('/', 1)[1].split('_', 1)[1].rsplit('.', 1)
 weight_dir = weight_path.rsplit('/', 1)[0] + '/'
 config = Config()
 net_dims = (256, 1024, 2048, 256)
-# agent = AgentSAC(net_dims, env.state_dim, env.action_dim, gpu_id=0, args=args)
-actor = ActorSAC(net_dims, env.state_dim, env.action_dim)
+# agent = AgentSAC(net_dims, env.state_dim, env.action_dim, gpu_id=0, args=config)
+# actor = ActorSAC(net_dims, env.state_dim, env.action_dim)
+
 
 
 if weight_path == "":
@@ -67,17 +68,15 @@ else:
 
     print("Visualizing and evaluating the policy: ", weight_path)
 
-    # agent.save_or_load_agent(weight_path, if_save=False)
     device = torch.device("cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if os.path.isfile(weight_path):
-                setattr(actor, "actor",torch.load(weight_path, map_location=device))
+        actor = torch.load(weight_path, map_location=lambda storage, loc: storage)
     env.turn_on_visualization()
 
-    # returns = np.zeros(max_step, dtype=np.float32)
-    # dones = np.zeros(max_step, dtype=bool)
-
     for step in range(max_step):
-        time.sleep(0.001)
+        # time.sleep(0.001)
+        # action = agent.act(state.to(device))
         action = actor(state.to(device))
         # print(action)
         state, reward, done, info_dict = env.step(action)
