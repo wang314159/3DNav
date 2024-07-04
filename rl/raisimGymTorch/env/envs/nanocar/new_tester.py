@@ -43,7 +43,7 @@ ob_dim = env.state_dim
 act_dim = env.action_dim
 
 weight_path = args.weight
-weight_path = "/home/wangshuai/raisim/raisimProject/3DNav/rl/Nanocar_SAC_1/actor__000000004000_-1526.543.pt"
+weight_path = "/home/ws/raisim/raisimProject/3DNav/rl/Nanocar_SAC_0/actor__000000007200_03107.963.pt"
 iteration_number = weight_path.rsplit('/', 1)[1].split('_', 1)[1].rsplit('.', 1)[0]
 weight_dir = weight_path.rsplit('/', 1)[0] + '/'
 config = Config()
@@ -75,7 +75,8 @@ else:
     env.turn_on_visualization()
 
     for step in range(max_step):
-        # time.sleep(0.001)
+        start = time.time()
+        time.sleep(control_dt)
         # action = agent.act(state.to(device))
         action = actor(state.to(device))
         # print(action)
@@ -85,10 +86,14 @@ else:
         dones = done.cpu().numpy()
 
         reward_ll_sum = reward_ll_sum + returns[0]
+        end = time.time()
+        step_time = end - start
+        if(step_time < control_dt):
+            time.sleep(control_dt - step_time)
         if dones or step == max_step - 1:
             print('----------------------------------------------------')
             print('{:<40} {:>6}'.format("average ll reward: ", '{:0.10f}'.format(reward_ll_sum / (step + 1 - start_step_id))))
-            print('{:<40} {:>6}'.format("time elapsed [sec]: ", '{:6.4f}'.format((step + 1 - start_step_id) * 0.01)))
+            print('{:<40} {:>6}'.format("time elapsed [sec]: ", '{:6.4f}'.format((step + 1 - start_step_id) * control_dt)))
             print('----------------------------------------------------\n')
             start_step_id = step + 1
             reward_ll_sum = 0.0

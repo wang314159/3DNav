@@ -25,7 +25,7 @@ environment:
     y: 4
   render: True
   num_envs: 50
-  eval_every_n: 10
+  eval_every_n: 5
   num_threads: 50
   simulation_dt: 0.005
   control_dt: 0.025
