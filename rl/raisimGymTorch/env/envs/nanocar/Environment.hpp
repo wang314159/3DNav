@@ -34,9 +34,10 @@ class ENVIRONMENT : public RaisimGymEnv {
         temp = unif_(gen_) - params_.goalthresh[0];
       goalpos[i]=temp;
     }
+    goalpos[0] = abs(goalpos[0]);
     // std::cout<<"goalpos"<<goalpos[0]<<" "<<goalpos[1]<<std::endl;
-    // goalpos[0]=params_.goalpos[0];
-    // goalpos[1]=params_.goalpos[1];
+    // goalpos[0]=4;//params_.goalpos[0];
+    // goalpos[1]=4;//params_.goalpos[1];
     /// create world
     world_ = std::make_unique<raisim::World>();
     mapheight = params_.map_param[0],mapwidth = params_.map_param[1];

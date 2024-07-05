@@ -43,7 +43,7 @@ ob_dim = env.state_dim
 act_dim = env.action_dim
 
 weight_path = args.weight
-weight_path = "/home/ws/raisim/raisimProject/3DNav/rl/Nanocar_SAC_0/actor__000000007200_03107.963.pt"
+# weight_path = "/home/ws/raisim/raisimProject/3DNav/rl/Nanocar_SAC/2024-07-04-23-34-36/actor__000000002400_-0641.987.pt"
 iteration_number = weight_path.rsplit('/', 1)[1].split('_', 1)[1].rsplit('.', 1)[0]
 weight_dir = weight_path.rsplit('/', 1)[0] + '/'
 config = Config()
@@ -76,7 +76,7 @@ else:
 
     for step in range(max_step):
         start = time.time()
-        time.sleep(control_dt)
+        # time.sleep(control_dt)
         # action = agent.act(state.to(device))
         action = actor(state.to(device))
         # print(action)
