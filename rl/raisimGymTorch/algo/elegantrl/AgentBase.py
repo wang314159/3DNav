@@ -4,6 +4,7 @@ from typing import Tuple, Union
 from torch import Tensor
 from torch.nn.utils import clip_grad_norm_
 import sys
+import numpy as np
 
 from .config import Config 
 from .replay_buffer import ReplayBuffer
@@ -66,47 +67,7 @@ class AgentBase:
         """save and load"""
         self.save_attr_names = {'act', 'act_target', 'act_optimizer', 'cri', 'cri_target', 'cri_optimizer'}
 
-    def explore_one_env(self, env, horizon_len: int, if_random: bool = False) -> Tuple[Tensor, ...]:
-        """
-        Collect trajectories through the actor-environment interaction for a **single** environment instance.
-
-        env: RL training environment. env.reset() env.step(). It should be a vector env.
-        horizon_len: collect horizon_len step while exploring to update networks
-        if_random: uses random action for warn-up exploration
-        return: `(states, actions, rewards, undones)` for off-policy
-            num_envs == 1
-            states.shape == (horizon_len, num_envs, state_dim)
-            actions.shape == (horizon_len, num_envs, action_dim)
-            rewards.shape == (horizon_len, num_envs)
-            undones.shape == (horizon_len, num_envs)
-        """
-        states = torch.zeros((horizon_len, self.num_envs, self.state_dim), dtype=torch.float32).to(self.device)
-        actions = torch.zeros((horizon_len, self.num_envs, self.action_dim), dtype=torch.float32).to(self.device)
-        rewards = torch.zeros((horizon_len, self.num_envs), dtype=torch.float32).to(self.device)
-        dones = torch.zeros((horizon_len, self.num_envs), dtype=torch.bool).to(self.device)
-
-        state = self.last_state  # state.shape == (1, state_dim) for a single env.
-
-        get_action = self.act.get_action
-        for t in range(horizon_len):
-            action = torch.rand(1, self.action_dim) * 2 - 1.0 if if_random else get_action(state)
-            states[t] = state
-
-            ary_action = action[0]
-            ary_state, reward, done, _ = env.step(ary_action)  # next_state
-            ary_state = env.reset() if done else ary_state  # ary_state.shape == (state_dim, )
-            state = torch.as_tensor(ary_state, dtype=torch.float32, device=self.device).unsqueeze(0)
-            actions[t] = action
-            rewards[t] = reward
-            dones[t] = done
-
-        self.last_state = state  # state.shape == (1, state_dim) for a single env.
-
-        rewards *= self.reward_scale
-        undones = 1.0 - dones.type(torch.float32)
-        return states, actions, rewards, undones
-
-    def explore_vec_env(self, env, horizon_len: int, if_random: bool = False,control_dt =0) -> Tuple[Tensor, ...]:
+    def explore_vec_env(self, env, horizon_len: int, if_random: bool = False,control_dt =0) -> Tuple[np.ndarray, ...]:
         """
         Collect trajectories through the actor-environment interaction for a **vectorized** environment instance.
 
@@ -119,17 +80,20 @@ class AgentBase:
             rewards.shape == (horizon_len, num_envs)
             undones.shape == (horizon_len, num_envs)
         """
-        states = torch.zeros((horizon_len, self.num_envs, self.state_dim), dtype=torch.float32).to(self.device)
-        actions = torch.zeros((horizon_len, self.num_envs, self.action_dim), dtype=torch.float32).to(self.device)
-        rewards = torch.zeros((horizon_len, self.num_envs), dtype=torch.float32).to(self.device)
-        dones = torch.zeros((horizon_len, self.num_envs), dtype=torch.bool).to(self.device)
+        states = np.zeros((horizon_len, self.num_envs, self.state_dim), dtype=np.float32)
+        actions = np.zeros((horizon_len, self.num_envs, self.action_dim), dtype=np.float32)
+        rewards = np.zeros((horizon_len, self.num_envs), dtype=np.float32)
+        dones = np.zeros((horizon_len, self.num_envs), dtype=bool)
 
         state = self.last_state  # last_state.shape == (num_envs, state_dim)
         get_action = self.act.get_action
         for t in range(horizon_len):
             # print("t: ", t)
-            action = torch.rand(self.num_envs, self.action_dim) * 1.6 - 0.8 if if_random \
-                else get_action(state).detach()
+            action = np.random.rand(self.num_envs, self.action_dim) * 1.6 - 0.8 if if_random \
+                else get_action(torch.from_numpy(state).to(self.device)).detach().cpu().numpy()
+            action = action.astype(np.float32)
+            # if not if_random:
+            #     print("action: ", action)
             states[t] = state  # state.shape == (num_envs, state_dim)
             state, reward, done, _ = env.step(action)  # next_state
             actions[t] = action
@@ -138,7 +102,7 @@ class AgentBase:
         self.last_state = state
 
         rewards *= self.reward_scale
-        undones = 1.0 - dones.type(torch.float32)
+        undones = 1.0 - dones.astype(np.float32)
         return states, actions, rewards, undones
 
     def update_net(self, buffer: Union[ReplayBuffer, tuple]) -> Tuple[float, ...]:
@@ -183,7 +147,7 @@ class AgentBase:
         masks = undones * self.gamma
         horizon_len = rewards.shape[0]
 
-        last_state = self.last_state
+        last_state = torch.from_numpy(self.last_state).to(self.device)
         next_action = self.act_target(last_state)
         next_value = self.cri_target(last_state, next_action).detach()
         for t in range(horizon_len - 1, -1, -1):

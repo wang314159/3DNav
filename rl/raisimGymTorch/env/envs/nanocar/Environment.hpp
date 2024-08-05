@@ -28,16 +28,16 @@ class ENVIRONMENT : public RaisimGymEnv {
     params_.update(cfg);
 
     std::uniform_real_distribution<double> unif_(0,params_.goalthresh[0]*2);
-    for(int i=0;i<2;i++){
-      double temp=0;
-      while(abs(temp)<params_.goalthresh[1])
-        temp = unif_(gen_) - params_.goalthresh[0];
-      goalpos[i]=temp;
-    }
-    goalpos[0] = abs(goalpos[0]);
+    // for(int i=0;i<2;i++){
+    //   double temp=0;
+    //   while(abs(temp)<params_.goalthresh[1])
+    //     temp = unif_(gen_) - params_.goalthresh[0];
+    //   goalpos[i]=temp;
+    // }
+    // goalpos[0] = abs(goalpos[0]);
     // std::cout<<"goalpos"<<goalpos[0]<<" "<<goalpos[1]<<std::endl;
-    // goalpos[0]=4;//params_.goalpos[0];
-    // goalpos[1]=4;//params_.goalpos[1];
+    goalpos[0]=4;//params_.goalpos[0];
+    goalpos[1]=4;//params_.goalpos[1];
     /// create world
     world_ = std::make_unique<raisim::World>();
     mapheight = params_.map_param[0],mapwidth = params_.map_param[1];
@@ -150,7 +150,6 @@ class ENVIRONMENT : public RaisimGymEnv {
     // v=0.5,w=0;
     v=std::clamp(v,-1.5,1.5),w=std::clamp(w,-1.0,1.0);
     w=std::clamp(w,-abs(v/3),abs(v/3));
-    
     vr = (v + w*d)/r;
     vl = (v - w*d)/r;
     theta = atan(l*w/(v+0.0001));
@@ -159,14 +158,19 @@ class ENVIRONMENT : public RaisimGymEnv {
     //   std::cout<<"theta"<<theta<<"vr"<<vr<<"vl"<<vl<<std::endl;
     // }
     vTarget4_ <<0,vl, 0,vr, vl, vr;
+    vTarget_.tail(nJoints_) = vTarget4_;
     pTarget4_ = gc_.tail(nJoints_);
     pTarget4_ += vTarget4_*(control_dt_ + simulation_dt_);
     pTarget4_[0] = theta, pTarget4_[2] = theta;
-    vTarget_.tail(nJoints_) = vTarget4_;
     pTarget_.tail(nJoints_) = pTarget4_;
     nanocar_->setPdTarget(pTarget_,vTarget_);
+
     // std::cout<<"begin integrate"<<std::endl;
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
+      // pTarget4_ += vTarget4_*(simulation_dt_+ 1e-10);
+      // pTarget4_[0] = theta, pTarget4_[2] = theta;
+      // pTarget_.tail(nJoints_) = pTarget4_;
+      // nanocar_->setPdTarget(pTarget_,vTarget_);
       if(server_) server_->lockVisualizationServerMutex();
       // std::cout<<"integrate"<<std::endl;
       world_->integrate();

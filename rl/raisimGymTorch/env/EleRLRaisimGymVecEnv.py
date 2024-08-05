@@ -53,14 +53,10 @@ class RaisimGymVecEnv():
     def stop_video_recording(self):
         self.wrapper.stopRecordingVideo()
 
-    def step(self, action: Tensor) -> (Tensor, Tensor, Tensor, list[dict]): # type: ignore
+    def step(self, action: np) -> (np, np, np, list[dict]): # type: ignore
         # print("step")
-        self.wrapper.step(action.cpu().detach().numpy(), self._reward, self._done)
-        states = torch.tensor(self._observations, dtype=torch.float32, device=self.device)
-        rewards = torch.tensor(self._reward, dtype=torch.float32, device=self.device)
-        dones = torch.tensor(self._done, dtype=torch.bool, device=self.device)
-        
-        return states, rewards, dones,{}
+        self.wrapper.step(action, self._reward, self._done)        
+        return self._observations.copy(), self._reward.copy(), self._done.copy(),{}
 
     def load_scaling(self, dir_name, iteration, count=1e5):
         mean_file_name = dir_name + "/mean" + str(iteration) + ".csv"
@@ -88,8 +84,7 @@ class RaisimGymVecEnv():
     def reset(self) -> Tensor:
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
         self.wrapper.reset()
-        states = torch.tensor(self._observations, dtype=torch.float32, device=self.device)
-        return states
+        return self._observations.copy()
 
     def close(self):
         self.wrapper.close()

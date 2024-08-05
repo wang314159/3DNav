@@ -151,7 +151,7 @@ class Evaluator:
         rewards_step_list = [self.get_cumulative_rewards_and_step_from_vec_env(self.env, actor)
                              for _ in range(max(1, self.eval_times // self.env.num_envs))]
         rewards_step_list = sum(rewards_step_list, [])
-        rewards_step_ten = torch.tensor(rewards_step_list)
+        rewards_step_ten = np.array(rewards_step_list)
         return rewards_step_ten  # rewards_steps_ten.shape[1] == 2
 
     def save_training_curve_jpg(self):
@@ -220,12 +220,12 @@ class Evaluator:
         max_step = env.max_step
 
         '''get returns and dones (GPU)'''
-        returns = torch.empty((max_step, env_num), dtype=torch.float32, device=device)
-        dones = torch.empty((max_step, env_num), dtype=torch.bool, device=device)
+        returns = np.empty((max_step, env_num), dtype=np.float32)
+        dones = np.empty((max_step, env_num), dtype=bool)
 
         state = env.reset()  # must reset in vectorized env
         for t in range(max_step):
-            action = actor(state.to(device))
+            action = actor(torch.from_numpy(state).to(device)).detach().cpu().numpy()
             # assert action.shape == (env.env_num, env.action_dim)
             # print("evaluator step")
             state, reward, done, info_dict = env.step(action)
@@ -237,18 +237,18 @@ class Evaluator:
         if hasattr(env, 'cumulative_returns'):  # GPU
             returns_step_list = [(ret, env.max_step) for ret in env.cumulative_returns]
         else:  # CPU
-            returns = returns.cpu()
-            dones = dones.cpu()
+            returns = returns
+            dones = dones
 
             returns_step_list = []
             #!important! may be wrong
             for i in range(env_num):
                 
-                dones_where = torch.where(dones[:, i] == 1)[0] + 1
+                dones_where = np.where(dones[:, i] == 1)[0] + 1
                 episode_num = len(dones_where)
                 # print("dones where ",dones_where)
                 if episode_num == 0:
-                    dones_where = torch.tensor([max_step], device=device)
+                    dones_where = np.array([max_step], dtype=np.int32)
 
                 j0 = 0
                 for j1 in dones_where.tolist():

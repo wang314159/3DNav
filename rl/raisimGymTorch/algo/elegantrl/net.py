@@ -21,6 +21,7 @@ class ActorBase(nn.Module):
         self.state_std = nn.Parameter(torch.ones((state_dim,)), requires_grad=False)
 
     def state_norm(self, state: Tensor) -> Tensor:
+        # print(state.device," ",self.state_avg.device," ",self.state_std.device)
         return (state - self.state_avg) / self.state_std
 
 

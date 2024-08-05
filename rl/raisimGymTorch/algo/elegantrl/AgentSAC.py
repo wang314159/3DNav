@@ -23,7 +23,11 @@ class AgentSAC(AgentBase):
 
     def update_net(self, buffer: ReplayBuffer) -> Tuple[float, ...]:
         with torch.no_grad():
-            states, actions, rewards, undones = buffer.add_item
+            states_np, actions_np, rewards_np, undones_np = buffer.add_item
+            states = torch.tensor(states_np, dtype=torch.float32, device=self.device)
+            actions = torch.tensor(actions_np, dtype=torch.float32, device=self.device)
+            rewards = torch.tensor(rewards_np, dtype=torch.float32, device=self.device)
+            undones = torch.tensor(undones_np, dtype=torch.float32, device=self.device)
             self.update_avg_std_for_normalization(
                 states=states.reshape((-1, self.state_dim)),
                 returns=self.get_cumulative_rewards(rewards=rewards, undones=undones).reshape((-1,))

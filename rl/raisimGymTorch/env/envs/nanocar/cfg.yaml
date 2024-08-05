@@ -27,11 +27,11 @@ environment:
     min: 2
   render: True
   num_envs: 50
-  eval_every_n: 5
-  num_threads: 50
+  eval_every_n: 10
+  num_threads: 100
   simulation_dt: 0.005
   control_dt: 0.025
-  max_time: 30.0
+  max_time: 20.0
   action_std: 0.3
   reward:
     # forwardVel:

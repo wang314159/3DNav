@@ -85,9 +85,9 @@ if __name__ == '__main__':
     state = env.reset()
 
     assert state.shape == (args.num_envs, args.state_dim)
-    assert isinstance(state, torch.Tensor)
-    state = state.to(agent.device)
-    agent.last_state = state.detach()
+    # assert isinstance(state, torch.Tensor)
+    # state = state.to(agent.device)
+    agent.last_state = state
 
     '''init evaluator'''
     evaluator = Evaluator(cwd=args.cwd, env=eval_env, args=args, if_wandb=use_wandb)
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     for i in range(epoches):
         # print(i)
         state = env.reset()
-        agent.last_state = state.to(agent.device).detach()
+        agent.last_state = state
         buffer_items = agent.explore_vec_env(env, horizon_len)
 
         exp_r = buffer_items[2].mean().item()
