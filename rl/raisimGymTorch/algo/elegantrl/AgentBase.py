@@ -90,7 +90,7 @@ class AgentBase:
         for t in range(horizon_len):
             # print("t: ", t)
             action = np.random.rand(self.num_envs, self.action_dim) * 1.6 - 0.8 if if_random \
-                else get_action(torch.from_numpy(state).to(self.device)).detach().cpu().numpy()
+                else get_action(torch.from_numpy(state).to(self.device)).cpu().numpy()
             action = action.astype(np.float32)
             # if not if_random:
             #     print("action: ", action)
