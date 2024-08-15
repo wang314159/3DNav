@@ -78,12 +78,12 @@ else:
         start = time.time()
         # time.sleep(control_dt)
         # action = agent.act(state.to(device))
-        action = actor(state.to(device))
+        action = actor(torch.from_numpy(state).to(device)).detach().cpu().numpy()
         # print(action)
         state, reward, done, info_dict = env.step(action)
         # self.analyzer.add_reward_info(env.get_reward_info())
-        returns = reward.cpu().numpy()
-        dones = done.cpu().numpy()
+        returns = reward
+        dones = done
 
         reward_ll_sum = reward_ll_sum + returns[0]
         end = time.time()

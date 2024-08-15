@@ -228,6 +228,8 @@ class Evaluator:
             action = actor(torch.from_numpy(state).to(device)).detach().cpu().numpy()
             # assert action.shape == (env.env_num, env.action_dim)
             # print("evaluator step")
+            for i in range(3):
+                env.step(action)
             state, reward, done, info_dict = env.step(action)
             self.analyzer.add_reward_info(env.get_reward_info())
             returns[t] = reward

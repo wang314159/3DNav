@@ -94,7 +94,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     nanocar_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
     /// MUST BE DONE FOR ALL ENVIRONMENTS
-    obDim_ = 11 ;//+ lidar_.e_.GetHeightVec().size();
+    obDim_ = 11 + lidar_.e_.GetHeightVec().size();
     actionDim_ = 2; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     bodyLinearVel_.setZero(),bodyAngularVel_.setZero();
     obDouble_.setZero(obDim_);
@@ -148,7 +148,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     // std::cout<<"step"<<std::endl;
     v=action[0],w=action[1];
     // v=0.5,w=0;
-    v=std::clamp(v,-1.5,1.5),w=std::clamp(w,-1.0,1.0);
+    v=std::clamp(v,-2.0,2.0),w=std::clamp(w,-1.0,1.0);
     w=std::clamp(w,-abs(v/3),abs(v/3));
     vr = (v + w*d)/r;
     vl = (v - w*d)/r;
@@ -167,10 +167,15 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     // std::cout<<"begin integrate"<<std::endl;
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
-      // pTarget4_ += vTarget4_*(simulation_dt_+ 1e-10);
-      // pTarget4_[0] = theta, pTarget4_[2] = theta;
-      // pTarget_.tail(nJoints_) = pTarget4_;
-      // nanocar_->setPdTarget(pTarget_,vTarget_);
+      // if(i%5==0){
+      //   nanocar_->getState(gc_, gv_);
+      //   pTarget4_ = gc_.tail(nJoints_);
+      //   pTarget4_ += vTarget4_*(simulation_dt_*5);
+      //   pTarget4_[0] = theta, pTarget4_[2] = theta;
+      //   pTarget_.tail(nJoints_) = pTarget4_;
+      //   nanocar_->setPdTarget(pTarget_,vTarget_);
+      // }
+      
       if(server_) server_->lockVisualizationServerMutex();
       // std::cout<<"integrate"<<std::endl;
       world_->integrate();
@@ -190,7 +195,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     rewards_.record("orientation", M_PI/3-abs(delta_theta));
     // if(visualizable_)
     // std::cout<<bodyLinearVel_[0]<<" "<<dist<<" "<<last_dist<<std::endl;
-    if(dist<0.2){
+    if(dist<0.3){
       std::cout<<"reach goal"<<std::endl;
       rewards_.record("reach", init_dist*init_dist);
     }else{
@@ -223,8 +228,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     obDouble_ << dist,delta_theta,//relative position to goal
 	      bodyLinearVel_[0],//linearvelocity
         bodyAngularVel_[2],//angularvelocity
-        euler[0],euler[1],euler[2];//orientation
-        //lidar_.e_.GetHeightVec(); 
+        euler[0],euler[1],euler[2],//orientation
+        lidar_.e_.GetHeightVec(); 
     // std::cout<<"observation end"<<std::endl;
   }
 

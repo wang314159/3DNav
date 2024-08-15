@@ -28,8 +28,9 @@ class ActorBase(nn.Module):
 class Actor(ActorBase):
     def __init__(self, dims: [int], state_dim: int, action_dim: int):
         super().__init__(state_dim=state_dim, action_dim=action_dim)
-        self.net = build_mlp(dims=[state_dim, *dims, action_dim])
-        layer_init_with_orthogonal(self.net[-1], std=0.1)
+        # self.net = build_mlp(dims=[state_dim, *dims, action_dim])
+        # layer_init_with_orthogonal(self.net[-1], std=0.1)
+        self.net = NormalNet(dims=[11+6,*dims,action_dim],img_size=20,img_feature_dim=6)
 
         self.explore_noise_std = 0.1  # standard deviation of exploration action noise
 
@@ -53,10 +54,12 @@ class Actor(ActorBase):
 class ActorSAC(ActorBase):
     def __init__(self, dims: [int], state_dim: int, action_dim: int):
         super().__init__(state_dim=state_dim, action_dim=action_dim)
-        self.net_s = build_mlp(dims=[state_dim, *dims], if_raw_out=False)  # network of encoded state
+        # self.net_s = build_mlp(dims=[state_dim, *dims], if_raw_out=False)  # network of encoded state
         self.net_a = build_mlp(dims=[dims[-1], action_dim * 2])  # the average and log_std of action
+        self.net_s = NormalNet(dims=[11+6,*dims],img_size=20,img_feature_dim=6)  # network of encoded state
+        # self.net_a = NormalNet(dims=[dims[-1], action_dim * 2],img_size=20,img_feature_dim=6)  # the average and log_std of action
 
-        layer_init_with_orthogonal(self.net_a[-1], std=0.1)
+        # layer_init_with_orthogonal(self.net_a[-1], std=0.1)
 
     def forward(self, state):
         state = self.state_norm(state)
@@ -204,13 +207,14 @@ class CriticBase(nn.Module):  # todo state_norm, value_norm
 class Critic(CriticBase):
     def __init__(self, dims: [int], state_dim: int, action_dim: int):
         super().__init__(state_dim=state_dim, action_dim=action_dim)
-        self.net = build_mlp(dims=[state_dim + action_dim, *dims, 1])
+        # self.net = build_mlp(dims=[state_dim + action_dim, *dims, 1])
+        self.net = NormalNet(dims=[11+6+action_dim,*dims,action_dim,1],img_size=20,img_feature_dim=6)
 
-        layer_init_with_orthogonal(self.net[-1], std=0.5)
+        # layer_init_with_orthogonal(self.net[-1], std=0.5)
 
     def forward(self, state: Tensor, action: Tensor) -> Tensor:
         state = self.state_norm(state)
-        values = self.net(torch.cat((state, action), dim=1))
+        values = self.net(torch.cat((action, state), dim=1))
         values = self.value_re_norm(values)
         return values.squeeze(dim=1)  # q value
 
@@ -218,25 +222,26 @@ class Critic(CriticBase):
 class CriticTwin(CriticBase):  # shared parameter
     def __init__(self, dims: [int], state_dim: int, action_dim: int):
         super().__init__(state_dim=state_dim, action_dim=action_dim)
-        self.net = build_mlp(dims=[state_dim + action_dim, *dims, 2])
+        # self.net = build_mlp(dims=[state_dim + action_dim, *dims, 2])
+        self.net = NormalNet(dims=[11+6+action_dim,*dims,action_dim,2], img_size=20, img_feature_dim=6)
 
-        layer_init_with_orthogonal(self.net[-1], std=0.5)
+        # layer_init_with_orthogonal(self.net[-1], std=0.5)
 
     def forward(self, state, action):
         state = self.state_norm(state)
-        values = self.net(torch.cat((state, action), dim=1))
+        values = self.net(torch.cat((action, state), dim=1))
         values = self.value_re_norm(values)
         return values.mean(dim=1)  # mean Q value
 
     def get_q_min(self, state, action):
         state = self.state_norm(state)
-        values = self.net(torch.cat((state, action), dim=1))
+        values = self.net(torch.cat((action, state), dim=1))
         values = self.value_re_norm(values)
         return torch.min(values, dim=1)[0]  # min Q value
 
     def get_q1_q2(self, state, action):
         state = self.state_norm(state)
-        values = self.net(torch.cat((state, action), dim=1))
+        values = self.net(torch.cat((action, state), dim=1))
         values = self.value_re_norm(values)
         return values[:, 0], values[:, 1]  # two Q values
 
@@ -272,13 +277,31 @@ def build_mlp(dims: [int], activation: nn = None, if_raw_out: bool = True) -> nn
         net_list.extend([nn.Linear(dims[i], dims[i + 1]), activation()])
     if if_raw_out:
         del net_list[-1]  # delete the activation function of the output layer to keep raw output
-    return nn.Sequential(*net_list)
+    return nn.Sequential(*net_list)  
 
 
 def layer_init_with_orthogonal(layer, std=1.0, bias_const=1e-6):
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
 
+class NormalNet(nn.Module):
+    def __init__(self, dims: [int], img_size: int,img_feature_dim: int = 6, activation: nn = None, if_raw_out: bool = True):
+        super().__init__()
+        self.img_size = img_size
+        self.input_dim = dims[0]+img_size*img_size-img_feature_dim
+        self.feature_dim = dims[0]
+        self.linear_net = build_mlp(dims=dims, activation=activation, if_raw_out=if_raw_out)
+        self.conv_net = ConvNet(inp_dim=1, out_dim=img_feature_dim, image_size=img_size)
+        layer_init_with_orthogonal(self.linear_net[-1], std=0.1)
+
+    def forward(self, input:Tensor):
+        input = input.reshape(-1,self.input_dim)
+        state = input[:,0:self.input_dim-self.img_size*self.img_size]
+        img = input[:,self.input_dim-self.img_size*self.img_size:self.input_dim].reshape(-1,1,self.img_size,self.img_size)
+        img_vec = self.conv_net(img)
+        # print(state.shape)
+        # print(img_vec.shape)
+        return self.linear_net(torch.cat((state,img_vec),dim=1))
 
 class NnReshape(nn.Module):
     def __init__(self, *args):
@@ -305,47 +328,27 @@ class DenseNet(nn.Module):  # plan to hyper-param: layer_number
 
 
 class ConvNet(nn.Module):  # pixel-level state encoder
-    def __init__(self, inp_dim, out_dim, image_size=224):
+    def __init__(self, inp_dim, out_dim, image_size=20):
         super().__init__()
-        if image_size == 224:
-            self.net = nn.Sequential(  # size==(batch_size, inp_dim, 224, 224)
-                nn.Conv2d(inp_dim, 32, (5, 5), stride=(2, 2), bias=False),
-                nn.ReLU(inplace=True),  # size=110
-                nn.Conv2d(32, 48, (3, 3), stride=(2, 2)),
-                nn.ReLU(inplace=True),  # size=54
-                nn.Conv2d(48, 64, (3, 3), stride=(2, 2)),
-                nn.ReLU(inplace=True),  # size=26
-                nn.Conv2d(64, 96, (3, 3), stride=(2, 2)),
-                nn.ReLU(inplace=True),  # size=12
-                nn.Conv2d(96, 128, (3, 3), stride=(2, 2)),
-                nn.ReLU(inplace=True),  # size=5
-                nn.Conv2d(128, 192, (5, 5), stride=(1, 1)),
-                nn.ReLU(inplace=True),  # size=1
-                NnReshape(-1),  # size (batch_size, 1024, 1, 1) ==> (batch_size, 1024)
-                nn.Linear(192, out_dim),  # size==(batch_size, out_dim)
-            )
-        elif image_size == 112:
-            self.net = nn.Sequential(  # size==(batch_size, inp_dim, 112, 112)
-                nn.Conv2d(inp_dim, 32, (5, 5), stride=(2, 2), bias=False),
-                nn.ReLU(inplace=True),  # size=54
-                nn.Conv2d(32, 48, (3, 3), stride=(2, 2)),
-                nn.ReLU(inplace=True),  # size=26
-                nn.Conv2d(48, 64, (3, 3), stride=(2, 2)),
-                nn.ReLU(inplace=True),  # size=12
-                nn.Conv2d(64, 96, (3, 3), stride=(2, 2)),
-                nn.ReLU(inplace=True),  # size=5
-                nn.Conv2d(96, 128, (5, 5), stride=(1, 1)),
-                nn.ReLU(inplace=True),  # size=1
-                NnReshape(-1),  # size (batch_size, 1024, 1, 1) ==> (batch_size, 1024)
-                nn.Linear(128, out_dim),  # size==(batch_size, out_dim)
-            )
-        else:
-            assert image_size in {224, 112}
+        self.net = nn.Sequential(  # size==(batch_size, inp_dim, 112, 112)
+            nn.Conv2d(inp_dim, 32, 3, stride=2, bias=False),
+            nn.ReLU(inplace=True),  # size=54
+            nn.Conv2d(32, 48, 3 , stride=1),
+            nn.ReLU(inplace=True),  # size=26
+            nn.Conv2d(48, 64, 3, stride=1),
+            nn.ReLU(inplace=True),  # size=12
+            nn.Conv2d(64, 96, 3, stride=1),
+            nn.ReLU(inplace=True),  # size=5
+            nn.Conv2d(96, 128, 3, stride=1),
+            nn.ReLU(inplace=True),  # size=1
+            NnReshape(-1),  # size (batch_size, 1024, 1, 1) ==> (batch_size, 1024)
+            nn.Linear(128, out_dim),  # size==(batch_size, out_dim)
+        )
 
     def forward(self, x):
         # assert x.shape == (batch_size, inp_dim, image_size, image_size)
-        x = x.permute(0, 3, 1, 2)
-        x = x / 128.0 - 1.0
+        # x = x.permute(0, 3, 1, 2)
+        # x = x / 128.0 - 1.0
         return self.net(x)
 
     @staticmethod
@@ -353,7 +356,7 @@ class ConvNet(nn.Module):  # pixel-level state encoder
         inp_dim = 3
         out_dim = 32
         batch_size = 2
-        image_size = [224, 112][1]
+        image_size = [20, 112][1]
         # from elegantrl.net import Conv2dNet
         net = ConvNet(inp_dim, out_dim, image_size)
 

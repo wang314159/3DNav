@@ -35,7 +35,7 @@ if __name__ == '__main__':
     if use_wandb:
         wandb.init(project="nanocar_navigation")
     
-    max_step = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
+    max_step = 200#math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
     control_dt = cfg['environment']['control_dt']
     eval_env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)
     env = VecEnv(RaisimGymEnv(home_path + "/data", dump(cfg['environment'], Dumper=RoundTripDumper)), max_step=max_step)

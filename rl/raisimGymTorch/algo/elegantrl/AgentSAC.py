@@ -25,7 +25,7 @@ class AgentSAC(AgentBase):
         with torch.no_grad():
             states_np, actions_np, rewards_np, undones_np = buffer.add_item
             states = torch.tensor(states_np, dtype=torch.float32, device=self.device)
-            actions = torch.tensor(actions_np, dtype=torch.float32, device=self.device)
+            # actions = torch.tensor(actions_np, dtype=torch.float32, device=self.device)
             rewards = torch.tensor(rewards_np, dtype=torch.float32, device=self.device)
             undones = torch.tensor(undones_np, dtype=torch.float32, device=self.device)
             self.update_avg_std_for_normalization(

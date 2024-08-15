@@ -95,6 +95,8 @@ class AgentBase:
             # if not if_random:
             #     print("action: ", action)
             states[t] = state  # state.shape == (num_envs, state_dim)
+            for i in range(3):
+                env.step(action)
             state, reward, done, _ = env.step(action)  # next_state
             actions[t] = action
             rewards[t] = reward
