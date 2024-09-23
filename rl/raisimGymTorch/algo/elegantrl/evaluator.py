@@ -9,6 +9,7 @@ from .config import Config
 from .RewardAnalyzer import EleRLRewardAnalyzer
 import wandb
 import datetime
+from ..lattice_planner.lattice import LatticeTrajectoryGenerator
 
 class Evaluator:
     def __init__(self, cwd: str, env, args: Config, if_wandb: bool = False):
@@ -33,6 +34,8 @@ class Evaluator:
         self.max_r = -np.inf
         self.analyzer = EleRLRewardAnalyzer(env)
         self.info_dict = {}
+        self.num_envs = args.num_envs
+        self.planner = LatticeTrajectoryGenerator(self.num_envs,0.2,0.025)
         print("| Evaluator:"
               "\n| `epoch`: Number of epoches"
               "\n| `time`: Time spent from last evaluation."
@@ -226,11 +229,14 @@ class Evaluator:
         state = env.reset()  # must reset in vectorized env
         for t in range(max_step):
             action = actor(torch.from_numpy(state).to(device)).detach().cpu().numpy()
-            # assert action.shape == (env.env_num, env.action_dim)
-            # print("evaluator step")
-            for i in range(3):
-                env.step(action)
-            state, reward, done, info_dict = env.step(action)
+            # print("action ",action)
+            self.planner.update(state[:,2],action)
+            new_action = np.ndarray((self.num_envs,2),dtype=np.float32)
+            for i in range(len(self.planner.Trajectory[0].w)):
+                for j in range(self.num_envs):
+                    new_action[j][0] = self.planner.Trajectory[j].v[i]
+                    new_action[j][1] = self.planner.Trajectory[j].w[i]
+                state, reward, done, _ = env.step(new_action)
             self.analyzer.add_reward_info(env.get_reward_info())
             returns[t] = reward
             dones[t] = done

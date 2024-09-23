@@ -57,7 +57,7 @@ if __name__ == '__main__':
     }
     print(env_args)
     args = Config(agent_class, env_class, env_args)  # see `config.py Arguments()` for hyperparameter explanation
-    args.net_dims = (256, 1024, 2048, 256)  # the middle layer dimension of MultiLayer Perceptron
+    args.net_dims = (256, 1024, 2048, 512, 256)  # the middle layer dimension of MultiLayer Perceptron
     args.batch_size = 1024  # vectorized env need a larger batch_size
     args.gamma = 0.97  # discount factor of future rewards
     args.horizon_len = args.max_step
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     del args
 
     for i in range(epoches):
-        # print(i)
+        
         state = env.reset()
         agent.last_state = state
         buffer_items = agent.explore_vec_env(env, horizon_len)

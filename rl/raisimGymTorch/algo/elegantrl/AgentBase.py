@@ -9,6 +9,7 @@ import numpy as np
 from .config import Config 
 from .replay_buffer import ReplayBuffer
 import time
+from ..lattice_planner.lattice import LatticeTrajectoryGenerator
 
 class AgentBase:
     """
@@ -37,6 +38,7 @@ class AgentBase:
         self.action_dim = action_dim
         self.last_state = None  # last state of the trajectory for training. last_state.shape == (num_envs, state_dim)
         self.device = torch.device(f"cuda:{gpu_id}" if (torch.cuda.is_available() and (gpu_id >= 0)) else "cpu")
+        self.planner = LatticeTrajectoryGenerator(self.num_envs,0.2,0.025)
 
         '''network'''
         act_class = getattr(self, "act_class", None)
@@ -89,16 +91,20 @@ class AgentBase:
         get_action = self.act.get_action
         for t in range(horizon_len):
             # print("t: ", t)
-            action = np.random.rand(self.num_envs, self.action_dim) * 1.6 - 0.8 if if_random \
+            action = np.random.rand(self.num_envs, self.action_dim) * 2.0 - 1 if if_random \
                 else get_action(torch.from_numpy(state).to(self.device)).cpu().numpy()
             action = action.astype(np.float32)
-            # if not if_random:
-            #     print("action: ", action)
-            states[t] = state  # state.shape == (num_envs, state_dim)
-            for i in range(3):
-                env.step(action)
-            state, reward, done, _ = env.step(action)  # next_state
-            actions[t] = action
+            # print("action ",action)
+            self.planner.update(state[:,2],action)
+            new_action = np.ndarray((self.num_envs,2),dtype=np.float32)
+            for i in range(len(self.planner.Trajectory[0].w)):
+                for j in range(self.num_envs):
+                    new_action[j][0] = self.planner.Trajectory[j].v[i]
+                    new_action[j][1] = self.planner.Trajectory[j].w[i]
+                state, reward, done, _ = env.step(new_action)
+
+            states[t] = state
+            actions[t] = new_action
             rewards[t] = reward
             dones[t] = done
         self.last_state = state

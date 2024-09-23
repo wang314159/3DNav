@@ -69,19 +69,18 @@ else:
     print("Visualizing and evaluating the policy: ", weight_path)
 
     device = torch.device("cpu")
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if os.path.isfile(weight_path):
         actor = torch.load(weight_path, map_location=lambda storage, loc: storage)
     env.turn_on_visualization()
 
     for step in range(max_step):
         start = time.time()
-        # time.sleep(control_dt)
-        # action = agent.act(state.to(device))
+
         action = actor(torch.from_numpy(state).to(device)).detach().cpu().numpy()
         # print(action)
         state, reward, done, info_dict = env.step(action)
-        # self.analyzer.add_reward_info(env.get_reward_info())
+
         returns = reward
         dones = done
 
